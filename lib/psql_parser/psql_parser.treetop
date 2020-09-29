@@ -1,4 +1,4 @@
-grammar VSql
+grammar PSql
 
   rule query
     space*

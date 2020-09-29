@@ -1,5 +1,8 @@
-module VSql
+require 'treetop'
+
+module PSql
   module Helpers
+
     def self.find_elements(node, klass, skip_klass = nil)
       results = []
       return results unless node.elements
@@ -17,7 +20,7 @@ module VSql
     end
   end
 
-  class Operator < Treetop::Runtime::SyntaxNode
+  class Operator < ::Treetop::Runtime::SyntaxNode
   end
 
   class Statement < Treetop::Runtime::SyntaxNode

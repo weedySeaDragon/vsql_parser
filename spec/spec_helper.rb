@@ -1,4 +1,5 @@
 require 'rspec'
-require_relative "../lib/test_chamber.rb"
+
+require File.join(__dir__, '..', 'lib', 'psql_parser.rb')
 
 alias running lambda

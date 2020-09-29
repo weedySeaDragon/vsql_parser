@@ -3,16 +3,16 @@ lib = File.expand_path('../lib/', __FILE__)
 $:.unshift lib unless $:.include?(lib)
 
 # Maintain the version:
-require "vsql_parser/version"
+require "psql_parser/version"
 
 Gem::Specification.new do |s|
-  s.name        = "vsql_parser"
-  s.version     = VsqlParser::VERSION
+  s.name        = "psql_parser"
+  s.version     = PsqlParser::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Ashley Engelund","Tim Harper"]
   s.email       = ["ashley.engelund@gmail.com","tim@redbrainlabs.com"]
   s.homepage    = "http://github.com/weedySeaDragon/vsql_parser"
-  s.summary     = "Vertica SQL Parser"
+  s.summary     = "Postgres (Vertica) SQL Parser"
   s.description = "Provides treetop grammar for Vertica SQL. (Most likely works with Postgres SQL as well)"
   s.licenses    = ['MIT']
 

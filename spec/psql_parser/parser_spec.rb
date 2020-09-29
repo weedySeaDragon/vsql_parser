@@ -1,24 +1,25 @@
 require 'spec_helper'
 
-describe VSqlParser do
-  include TestChamber
+describe PsqlParser::Parser do
 
   def assert_parse(sql)
     running {
-      parse sql
+      described_class.parse sql
     }.should_not raise_error
   end
 
   def assert_not_parse(sql)
     running {
-      parse sql, false
+      described_class.parse sql
     }.should raise_error
   end
 
   def select_expressions(sql)
-    parse(sql).select_statement.expressions.map(&:text_value)
+    described_class.parse(sql).select_statement.expressions.map(&:text_value)
   end
-  
+
+  # ----------------------------------------------------
+
   context "expression parsing" do
     it "parses complex arithmetic expressions" do
       assert_parse("SELECT ((a + b) / 5) + c")
@@ -172,7 +173,7 @@ EOF
     it "supports simple where expressions" do
       assert_parse("SELECT * FROM table WHERE true")
     end
-    
+
     it "supports nested AND / OR expressions" do
       assert_parse("SELECT * FROM table WHERE (field1 = field2 OR field1 IS NULL) AND (field2 > (field3 + 5))")
     end
@@ -197,7 +198,7 @@ EOF
     it "supports simple where expressions" do
       assert_parse("SELECT * FROM table HAVING COUNT(*) > 1")
     end
-    
+
     it "supports nested AND / OR expressions" do
       assert_parse("SELECT * FROM table HAVING COUNT(*) > 1 AND (count(agent.*) = 0 OR count(calls.*) = 0)")
     end

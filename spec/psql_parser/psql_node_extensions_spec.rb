@@ -1,9 +1,13 @@
 require 'spec_helper'
 
 describe "Node Extensions" do
-  include TestChamber
 
-  describe VSql::SelectExpression do
+  describe PSql::SelectExpression do
+
+    def parse(sql)
+      PsqlParser::Parser.parse sql
+    end
+
     def expressions_for(sql)
       parse(sql).select_statement.expressions
     end

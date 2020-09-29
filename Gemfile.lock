@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    vsql_parser (0.1.1)
+    psql_parser (0.1.1)
       treetop (~> 1.4.0)
 
 GEM
@@ -25,8 +25,8 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  psql_parser!
   rspec (>= 2.10.0)
-  vsql_parser!
 
 BUNDLED WITH
    2.1.4

@@ -1,5 +1,5 @@
 # In file parser.rb
-require_relative './vsql_parser.rb'
+require_relative './psql_parser.rb'
 
 module TestChamber
   module Helpers
@@ -13,8 +13,8 @@ module TestChamber
   extend self
 
   def parse(sql, output_errors = true)
-    parser = ::VSqlParser.parser
-    VSqlParser.parse(sql).tap do |tree|
+    parser = ::PSqlParser.parser
+    PSqlParser.parse(sql).tap do |tree|
       # If the AST is nil then there was an error during parsing
       # we need to report a simple error message to help the user
       if tree.nil?
@@ -49,9 +49,9 @@ module TestChamber
     Object.send(:remove_const, :Sql) rescue nil
     TestChamber.send(:remove_const, :PARSER) rescue nil
 
-    load(File.join(VSQLPARSER_BASE_PATH, 'vsql_node_extensions.rb'))
-    Treetop.load(File.join(VSQLPARSER_BASE_PATH, 'vsql_parser.treetop'))
-    VSqlParser.extend(VSqlParserHelpers)
+    load(File.join(PSQLPARSER_BASE_PATH, 'pql_node_extensions.rb'))
+    Treetop.load(File.join(PSQLPARSER_BASE_PATH, 'psql_parser.treetop'))
+    PSqlParser.extend(PSqlParserHelpers)
     load(__FILE__)
   end
 end
