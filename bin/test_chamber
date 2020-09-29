@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
-require 'pry'
+
 require_relative '../lib/test_chamber.rb'
 include(TestChamber)
 puts <<-EOF
-Pry interactive shell with TestChamber module included
+includ the TestChamber module
 
 Helpers:
 
@@ -11,5 +11,3 @@ Helpers:
 * reload      - reload the treetop and node extensions.
 
 EOF
-
-pry(self)
