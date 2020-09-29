@@ -11,13 +11,15 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Ashley Engelund","Tim Harper"]
   s.email       = ["ashley.engelund@gmail.com","tim@redbrainlabs.com"]
-  # s.homepage    = "http://github.com/leadtune/queue_map"
+  s.homepage    = "http://github.com/weedySeaDragon/vsql_parser"
   s.summary     = "Vertica SQL Parser"
   s.description = "Provides treetop grammar for Vertica SQL. (Most likely works with Postgres SQL as well)"
+  s.licenses    = ['MIT']
 
   s.files        = Dir.glob("{lib}/**/*") + %w(MIT_LICENSE)
   s.require_path = 'lib'
 
   s.add_dependency "treetop", "~> 1.4.0"
+
   s.add_development_dependency "rspec", ">= 2.10.0"
 end
