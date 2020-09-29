@@ -3,7 +3,7 @@
 require_relative '../lib/test_chamber.rb'
 include(TestChamber)
 puts <<-EOF
-includ the TestChamber module
+include the TestChamber module
 
 Helpers:
 
