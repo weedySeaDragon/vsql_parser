@@ -15,13 +15,9 @@ Gem::Specification.new do |s|
   s.summary     = "Vertica SQL Parser"
   s.description = "Provides treetop grammar for Vertica SQL. (Most likely works with Postgres SQL as well)"
 
-  s.required_rubygems_version = ">= 1.3.6"
-
-  s.add_dependency "treetop", "~> 1.4"
-  s.add_development_dependency "ruby-debug19"
-  s.add_development_dependency "rspec", "2.10.0"
-  s.add_development_dependency "pry"
-
   s.files        = Dir.glob("{lib}/**/*") + %w(MIT_LICENSE)
   s.require_path = 'lib'
+
+  s.add_dependency "treetop", "~> 1.4.0"
+  s.add_development_dependency "rspec", ">= 2.10.0"
 end
