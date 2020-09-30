@@ -17,7 +17,7 @@ class PsqlParser::Parser
   @@parser = PSqlParser.new
 
 
-  def self.parse(sql, show_tree: true)
+  def self.parse(sql, show_tree: false)
     d_sql = sql.downcase # REQUIRED!
 
     # parser.parse(d_sql).tap do

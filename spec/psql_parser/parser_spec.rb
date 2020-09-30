@@ -301,9 +301,11 @@ EOF
             # assert_parse "CREATE TABLE questions (code character varying(15))"
           end
 
-          it 'char(x) character(x)' do
+          it 'char(x)' do
             assert_parse "CREATE TABLE questions (code char)"
             assert_parse "CREATE TABLE questions (code char(2))"
+          end
+          it 'character(x)' do
             assert_parse "CREATE TABLE questions (code character)"
             assert_parse "CREATE TABLE questions (code character(5))"
           end

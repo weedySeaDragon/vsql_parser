@@ -753,7 +753,7 @@ grammar PSql
 
   # character [ (n) ]	char [ (n) ]
   rule character_type
-   (  'character' / 'char') integer_in_parenthese
+   (  'character' / 'char') integer_in_parenthese?
    <CharacterType>
   end
 
@@ -798,7 +798,7 @@ grammar PSql
   # time [ (p) ] [ without time zone ]
   # time [ (p) ] with time zone
   rule time_timestamp_type
-    ('time' / 'timestamp' )
+    ('timestamp' / 'time' )
       integer_in_parenthese?
        with_or_without_timezone_stmt?
     <TimestampType>
