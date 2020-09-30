@@ -1,11 +1,21 @@
 require 'spec_helper'
 
-# FIXME: How to handle 2 words that hae the same start?
-#   char, character | etc.   parser can't handle them.  Use a {} ?
+RSpec.shared_examples 'it can parse sql file' do |sql_fn|
+
+  it "#{sql_fn}" do
+    sql = ''
+    File.open(File.join(FIXTURES, sql_fn), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
+    puts "sql:"
+    puts sql
+    assert_parse(sql, show_tree: true)
+  end
+end
+
+
 RSpec.describe PsqlParser::Parser do
 
-  def assert_parse(sql)
-    expect { described_class.parse sql }.not_to raise_error
+  def assert_parse(sql, show_tree: false)
+    expect { described_class.parse sql, show_tree: show_tree }.not_to raise_error
   end
 
 
@@ -271,6 +281,8 @@ EOF
       it 'table name' do
         assert_parse "CREATE TABLE answers_table"
         assert_parse "CREATE TABLE public.answers_table"
+        assert_parse "CREATE TABLE answers_table;"
+        assert_parse "CREATE TABLE public.answers_table;"
       end
 
       #
@@ -526,7 +538,6 @@ EOF
     end
 
 
-
     describe 'COMMENT ON' do
 
       ['COLLATION', 'COLUMN', 'CONVERSION',
@@ -534,7 +545,7 @@ EOF
        'FOREIGN DATA WRAPPER', 'FOREIGN TABLE',
        'INDEX', 'MATERIALIZED VIEW',
        'ROLE', 'SCHEMA', 'SEQUENCE', 'SERVER', 'TABLE',
-        'TEXT SEARCH CONFIGURATION',
+       'TEXT SEARCH CONFIGURATION',
        'TEXT SEARCH DICTIONARY', 'TEXT SEARCH PARSER',
        'TEXT SEARCH TEMPLATE',
        'TYPE', 'VIEW'
@@ -824,18 +835,132 @@ EOF
 
       assert_parse sql
     end
+
+    it 'create breed_quiz_scoring table' do
+      sql = "CREATE TABLE public.breed_quiz_scoring_keys (" +
+        "id integer NOT NULL," +
+        "breed_profile_id integer," +
+        "question_id integer," +
+        "answer_id integer," +
+        "score_value integer," +
+        "created_at timestamp without time zone NOT NULL," +
+        "updated_at timestamp without time zone NOT NULL," +
+        "question_reference_id character varying," +
+        "answer_reference_id character varying);"
+      assert_parse sql
+    end
+
+    it 'sql from file' do
+
+      sql = "CREATE TABLE public.answers ( id integer NOT NULL,
+    question_id integer,
+    text text,
+    short_text text,
+    help_text text,
+    weight integer,
+    response_class character varying,
+    reference_identifier character varying,
+    data_export_identifier character varying,
+    common_namespace character varying,
+    common_identifier character varying,
+    display_order integer,
+    is_exclusive boolean,
+    display_length integer,
+    custom_class character varying,
+    custom_renderer character varying,
+    created_at timestamp without time zone,
+    updated_at timestamp without time zone,
+    default_value character varying,
+    api_id character varying,
+    display_type character varying,
+    input_mask character varying,
+    input_mask_placeholder character varying,
+    original_choice character varying,
+    is_comment boolean DEFAULT false,
+    column_id integer,
+    question_reference_id character varying
+);
+
+
+CREATE TABLE public.answers (
+    id integer NOT NULL,
+    question_id integer,
+    text text,
+    short_text text,
+    help_text text,
+    weight integer,
+    response_class character varying,
+    reference_identifier character varying,
+    data_export_identifier character varying,
+    common_namespace character varying,
+    common_identifier character varying,
+    display_order integer,
+    is_exclusive boolean,
+    display_length integer,
+    custom_class character varying,
+    custom_renderer character varying,
+    created_at timestamp without time zone,
+    updated_at timestamp without time zone,
+    default_value character varying,
+    api_id character varying,
+    display_type character varying,
+    input_mask character varying,
+    input_mask_placeholder character varying,
+    original_choice character varying,
+    is_comment boolean DEFAULT false,
+    column_id integer,
+    question_reference_id character varying
+);
+
+
+CREATE TABLE public.breed_profiles (
+    id integer NOT NULL,
+    name character varying,
+    signal integer,
+    flock integer,
+    egna integer,
+    jakt integer,
+    apport integer,
+    vatten integer,
+    skall integer,
+    vakt integer,
+    comments text,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    reference_identifier character varying,
+    locale character varying,
+    aktionradie_text character varying,
+    aktionradie integer,
+    arbetsbakgrund character varying,
+    photo_file_name character varying,
+    photo_content_type character varying,
+    photo_file_size integer,
+    photo_updated_at timestamp without time zone
+);
+
+
+"
+      assert_parse sql, show_tree: true
+    end
   end
 
-  describe 'SQL file' do
+  describe 'SQL files' do
 
     FIXTURES = File.join(__dir__, '..', 'fixtures')
 
     RASVAL_ANS_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
 
+    CREATE_TABLES_ONLY = 'rasval_production_20200402_2155-createTables-only.sql'
+
+
+    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+
     xit 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql' do
       sql = ''
       File.open(File.join(FIXTURES, RASVAL_ANS_BPROFILES), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
-      assert_parse(sql)
+      puts "sql:"
+      puts sql
+      assert_parse(sql, show_tree: true)
     end
 
   end

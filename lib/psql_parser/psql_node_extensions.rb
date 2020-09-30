@@ -21,8 +21,9 @@ module PSql
   end
 
   class DDLorQuery < ::Treetop::Runtime::SyntaxNode
-    def select_statement
-    end
+  end
+
+  class CommentLine < ::Treetop::Runtime::SyntaxNode
   end
 
   class DDLStatement < ::Treetop::Runtime::SyntaxNode

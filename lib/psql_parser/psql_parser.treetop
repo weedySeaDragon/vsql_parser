@@ -7,13 +7,13 @@ grammar PSql
   end
 
   rule ddl_statement
-    space*
-    (create_table /
-    grant_or_revoke_statement /
-    set_statement /
-    comment_on_stmt /
-    create_sequence /
-    alter_sequence)
+    space* ( create_table /
+      grant_or_revoke_statement /
+      set_statement /
+      comment_on_stmt /
+      create_sequence /
+      alter_sequence )
+     (space / ';')*
     <DDLStatement>
   end
 
@@ -31,6 +31,11 @@ grammar PSql
     (space* 'union' space query)?
     (space / ';')*
     <Query>
+  end
+
+  rule comment_line
+    '--' [^\n]*
+    <CommentLine>
   end
 
   rule select_statement
@@ -100,18 +105,7 @@ grammar PSql
     )
   end
 
-  # ( space '(' space?
-  #         column_specification
-  #           (space? ',' space? column_specification )*
-  #         space? ')'
-  #       )?             <CreateTable>
-  #
-  #  opt_schema_table_name
-  #
-  # <CreateTable>
-  #               (space? ',' space? column_specification )*
-  #
-  #      ( space '(' space? column_specification space? ')' )?
+
   rule create_table
     'create' space 'table' space  opt_schema_table_name
       ( space '(' space? column_specification space?
@@ -502,13 +496,15 @@ grammar PSql
   end
 
   rule alter_sequence_clause
+    seq_owned_by_clause /
     seq_increment_clause /
     seq_minval_clause /
     seq_maxval_clause /
     seq_start_with_clause /
     seq_cache_clause /
     seq_cycle_clause /
-    seq_owned_by_clause /
+    alter_seq_rename /
+    alter_seq_change_schema /
     ( space 'restart' space ( 'with' space )? pos_neg_integer+)
     <AlterSequenceClause>
   end
