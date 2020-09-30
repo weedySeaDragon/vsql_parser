@@ -1,5 +1,22 @@
 grammar PSql
 
+  rule ddl_or_query
+    space*
+    (query / ddl_statement)
+    <DDLorQuery>
+  end
+
+  rule ddl_statement
+    space*
+    (create_table /
+    grant_or_revoke_statement /
+    set_statement /
+    comment_on_stmt /
+    create_sequence /
+    alter_sequence)
+    <DDLStatement>
+  end
+
   rule query
     space*
     select_statement
@@ -17,47 +34,57 @@ grammar PSql
   end
 
   rule select_statement
-    'select' space (distinct_predicate space)? select_expressions <SelectStatement>
+    'select' space (distinct_predicate space)? select_expressions
+     <SelectStatement>
   end
 
   rule join_statement
     ('left' / 'outer' / 'inner' / 'right' / 'full' / space)* 'join' space expression (space alias)? space 'on' space expression
+    <JoinStatement>
   end
 
   rule where_statement
     'where' space expression
+    <WhereStatement>
   end
 
   rule having_statement
     'having' space expression
+    <HavingClause>
   end
 
   rule window_statement
-    'window' space name_expression space 'as' space window
+    'window' space field_entity space 'as' space window
+    <WindowStatement>
   end
 
   rule group_by_statement
-    'group by' space expression (expression_separator expression)* <Statement>
+    'group by' space expression (items_separator expression)*
+     <GroupByClause>
   end
 
   rule order_by_statement
-    'order by' space order_by_expression (expression_separator order_by_expression)* <Statement>
+    'order by' space order_by_expression (items_separator order_by_expression)*
+     <Statement>
   end
 
   rule limit_statement
     'limit' space [0-9]+
+    <StatementClause>
   end
 
   rule select_expressions
-    select_expression (expression_separator select_expression)* <Entity>
+    select_expression (items_separator select_expression)* <Entity>
   end
 
-  rule expression_separator
-    space* ',' space* <Entity>
+  rule items_separator
+    space* ',' space*
+    <ListSeparator>
   end
 
   rule order_by_expression
     expression (space ('desc' / 'asc'))?
+    <OrderByClause>
   end
 
   rule select_expression
@@ -73,6 +100,487 @@ grammar PSql
     )
   end
 
+  # ( space '(' space?
+  #         column_specification
+  #           (space? ',' space? column_specification )*
+  #         space? ')'
+  #       )?             <CreateTable>
+  #
+  #  opt_schema_table_name
+  #
+  # <CreateTable>
+  #               (space? ',' space? column_specification )*
+  #
+  #      ( space '(' space? column_specification space? ')' )?
+  rule create_table
+    'create' space 'table' space  opt_schema_table_name
+      ( space '(' space? column_specification space?
+          (items_separator column_specification )* space? ')' )?
+    <CreateTable>
+  end
+
+
+  rule alter_table
+    'alter table' space ( 'if exists' space)? ( 'only' space)? table_name
+      ( space '*'       )
+    <AlterTable>
+  end
+#
+#  rule alter_table_actions
+#    alter_table_action ( space? ',' space? alter_table_action)*
+#  end
+#
+#  rule alter_table_action
+#  ADD [ COLUMN ] [ IF NOT EXISTS ] column_name data_type [ COLLATE collation ] [ column_constraint [ ... ] ]
+#    DROP [ COLUMN ] [ IF EXISTS ] column_name [ RESTRICT | CASCADE ]
+#    ALTER [ COLUMN ] column_name [ SET DATA ] TYPE data_type [ COLLATE collation ] [ USING expression ]
+#    ALTER [ COLUMN ] column_name SET DEFAULT expression
+#    ALTER [ COLUMN ] column_name DROP DEFAULT
+#    ALTER [ COLUMN ] column_name { SET | DROP } NOT NULL
+#    ALTER [ COLUMN ] column_name SET STATISTICS integer
+#    ALTER [ COLUMN ] column_name SET ( attribute_option = value [, ... ] )
+#    ALTER [ COLUMN ] column_name RESET ( attribute_option [, ... ] )
+#    ALTER [ COLUMN ] column_name SET STORAGE { PLAIN | EXTERNAL | EXTENDED | MAIN }
+#    ADD table_constraint [ NOT VALID ]
+#    ADD table_constraint_using_index
+#    ALTER CONSTRAINT constraint_name [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+#    VALIDATE CONSTRAINT constraint_name
+#    DROP CONSTRAINT [ IF EXISTS ]  constraint_name [ RESTRICT | CASCADE ]
+#    DISABLE TRIGGER [ trigger_name | ALL | USER ]
+#    ENABLE TRIGGER [ trigger_name | ALL | USER ]
+#    ENABLE REPLICA TRIGGER trigger_name
+#    ENABLE ALWAYS TRIGGER trigger_name
+#    DISABLE RULE rewrite_rule_name
+#    ENABLE RULE rewrite_rule_name
+#    ENABLE REPLICA RULE rewrite_rule_name
+#    ENABLE ALWAYS RULE rewrite_rule_name
+#    DISABLE ROW LEVEL SECURITY
+#    ENABLE ROW LEVEL SECURITY
+#    FORCE ROW LEVEL SECURITY
+#    NO FORCE ROW LEVEL SECURITY
+#    CLUSTER ON index_name
+#    SET WITHOUT CLUSTER
+#    SET WITH OIDS
+#    SET WITHOUT OIDS
+#    SET TABLESPACE new_tablespace
+#    SET { LOGGED | UNLOGGED }
+#    SET ( storage_parameter [= value] [, ... ] )
+#    RESET ( storage_parameter [, ... ] )
+#    INHERIT parent_table
+#    NO INHERIT parent_table
+#    OF type_name
+#    NOT OF
+#    OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
+#    REPLICA IDENTITY { DEFAULT | USING INDEX index_name | FULL | NOTHING }
+#  end
+#
+#
+#  rule alter_table_constraint
+#    [ CONSTRAINT constraint_name ]
+#    { UNIQUE | PRIMARY KEY } USING INDEX index_name
+#    [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+#  end
+
+  rule table_scope
+    ( ( ( 'global' / 'local') space)*  ('temporary' / 'temp') )* ('unlogged')*
+     <TableScope>
+  end
+
+  # The name (optionally schema-qualified) of the table
+  #   ( schema_name '.' )? table_name
+  rule opt_schema_table_name
+    ( [\w_]+ '.' )? [\w_]+
+    <OptionalSchemaTableName>
+  end
+
+  rule column_specification
+    column_name space ( data_type )
+      ( space constraint_definition )?
+      ( space column_collation )?
+      ( space column_constraint)*
+      ( space deferrable_clause)?
+      ( space immediate_clause)?
+      <ColumnSpecification>
+  end
+
+
+  rule column_name
+    [\w]+
+    <ColumnName>
+  end
+
+  rule column_collation
+    'collate' space [\w_\.]+
+    <ColumnCollateClause>
+  end
+
+  rule column_constraint
+    ( default_expression space? ) /
+    ( primary_key_definition space? ) /
+    ( unique_definition space? ) /
+    ( null_or_not_clause space? ) /
+    ( check_expression space? ) /
+    ( references_definition space? )
+    <ColumnConstraint>
+  end
+
+  rule deferrable_clause
+     'deferrable' / 'not deferrable'
+    <DeferrableClause>
+  end
+
+  rule immediate_clause
+     'initially deferred' / 'initially immediate'
+     <ImmediateClause>
+  end
+
+  rule constraint_definition
+    'constraint' space [\w_]+
+    <ConstraintDefinition>
+  end
+
+  rule null_or_not_clause
+    'null' / 'not null'
+    <NullOrNotClause>
+  end
+
+  rule default_expression
+    'default' space expression
+    <DefaultExpression>
+  end
+
+  rule primary_key_definition
+    'primary key'
+      (space columns_in_parentheses )?
+      (space (using_index_tablespace_parameters)? )?
+      <PrimaryKeyDefinition>
+  end
+
+  rule unique_definition
+    'unique'
+      (space columns_in_parentheses )?
+      (space (using_index_tablespace_parameters)? )?
+      <UniqueDefinition>
+  end
+
+  rule check_expression
+    'check'
+      ( space '(' space? expression space? ')' )?
+      ( space 'no inherit' space?)?
+      <CheckExpression>
+  end
+
+  rule references_definition
+    'references' space opt_schema_table_name
+      ( space '(' space? column_name space? ')' )?
+      ( space ('match full' / 'match partial' / 'match simple') )?
+      <ReferencesDefinition>
+  end
+
+  rule columns_in_parentheses
+   ( '(' space? column_name (',' space column_name)* space? ')' space?)
+   <ColumnsInParentheses>
+  end
+
+  # TODO: This is incomplete. It does not include the '[ WITH ( storage_parameter [= value] [, ... ] ) ]' clause
+  rule using_index_tablespace_parameters
+    (space? 'using index tablespace' space opt_schema_table_name)
+    <UsingIndexTablespaceParameters>
+  end
+
+
+ rule grant_or_revoke_statement
+   ('grant' / 'revoke') space role_names space 'on schema' space schema_name space 'to' space role_specifications
+     (space 'with admin option')?
+     (space 'granted by' space role_specifications)?
+     <GrantOrRevokeStatement>
+ end
+
+  rule role_names
+    role_name (space? ',' space? role_name )*
+    <RoleNames>
+  end
+
+  rule role_specifications
+    role_specification (space? ',' space? role_specification )*
+    <RoleSpecifications>
+  end
+
+  rule role_specification
+   ('group' space)? role_name / 'public' / 'current_user' / 'session_user'
+   <RoleSpecifications>
+  end
+
+  # not schema qualified
+  rule table_name
+    [\w_]+
+    <TableName>
+  end
+
+  rule schema_name
+    [\w_]+
+    <SchemaName>
+  end
+
+  rule role_name
+    [\w_]+
+    <RoleName>
+  end
+
+  rule set_statement
+    'set' space (session_local_scope space)?
+       configuration_parameter
+       ( ( space 'to' space ) / ( space? '=' space? ) ) primitive_literal
+       <SetConfigParamStatement>
+  end
+
+  rule session_local_scope
+    'session' / 'local'
+    <SessionLocalScope>
+  end
+
+  rule configuration_parameter
+    [\w_.]+ <ConfigParameter>
+  end
+
+  rule comment_on_stmt
+    ( 'comment' space 'on' space
+       ( comment_target_on_object /
+        comment_target_aggregate /
+        procedural_language_comment_target
+      )
+    ) space 'is' space "'" comment_text "'"
+    <CommentOnStatement>
+  end
+
+  rule comment_text
+    [^']+
+    <CommentText>
+  end
+
+  rule comment_target_aggregate
+   'aggregate' space aggregate_name space '(' space? aggregate_signature space? ')'
+    <CommentTargetAggregate>
+  end
+
+  rule aggregate_name
+    [\w_]+
+    <AggregateName>
+  end
+
+  rule argmode
+    'inout' / 'in' / 'out' / 'variadic'
+    <AggregateMode>
+  end
+
+  # TODO: this isn't really accurate.  but it'll cover lots of cases
+  rule argtype
+    data_type
+    <AggregateType>
+  end
+
+  rule argtypes
+    data_type ( items_separator argtype)*
+    <AggregateTypes>
+  end
+
+  rule arg_mode_name_type
+    (argmode space)? (aggregate_name space)? data_type
+    <AggregateModeNameTypesClause>
+  end
+
+
+  rule aggregate_signature
+    '*' <AggregateSignature> / arg_mode_name_type (items_separator arg_mode_name_type)?  <AggregateSignature> /
+     ( (argmode space)? 'order by' space arg_mode_name_type (items_separator arg_mode_name_type)? ) <AggregateSignature>
+  end
+
+
+  rule procedural_language_comment_target
+    [\w_]+
+    <ProceduralLanguageCommentTarget>
+  end
+
+  rule comment_target_on_object
+    comment_target_object space comment_object_name
+    <CommentTargetOnObjectClause>
+  end
+
+  rule comment_target_object
+    'access method' /
+    'cast' /
+    'collation' /
+    'column' /
+    'constraint' /
+    'conversion' /
+    'database' /
+    'domain' /
+    'extension' /
+    'event trigger' /
+    'foreign table' /
+    'foreign data wrapper' /
+    'function' /
+    'index' /
+    'large object' /
+    'materialized view' /
+    'operator' /
+    'operator class' /
+    'operator family'  /
+    'policy' /
+    'role' /
+    'rule' /
+    'schema' /
+    'sequence' /
+    'server' /
+    'table' /
+    'tablespace' /
+    'text search configuration' /
+    'text search dictionary' /
+    'text search parser' /
+    'text search template' /
+    'transform for' /
+    'trigger'  /
+    'type'/
+    'view'
+    <CommentTargetObjectKeyword>
+  end
+
+  rule comment_object_name
+    [\w_]+
+    <CommentTargetObjectName>
+  end
+
+
+  rule create_sequence
+    'create' space 'sequence' space ( 'temporary' space)? sequence_name
+      (seq_increment_clause /
+           seq_start_with_clause /
+           seq_minval_clause /
+           seq_maxval_clause /
+           seq_cache_clause /
+           seq_cycle_clause /
+           if_not_exists_clause /
+           seq_owned_by_clause )*
+    <CreateSequence>
+  end
+
+  # TODO: why doesn't this work when I use it in create_sequence?
+  rule sequence_clause
+    ( seq_increment_clause /
+      seq_start_with_clause /
+      seq_minval_clause /
+      seq_maxval_clause /
+      seq_cache_clause /
+      seq_cycle_clause /
+      if_not_exists_clause /
+      seq_owned_by_clause )
+    <SequenceClause>
+  end
+
+  rule alter_sequence
+     'alter sequence' space ( 'if exists' space )? sequence_name
+          ( alter_sequence_clause* ) /
+          alter_seq_rename /
+          alter_seq_change_owner /
+          alter_seq_change_schema
+     <AlterSequence>
+  end
+
+  rule alter_seq_rename
+    space 'rename to' space sequence_name
+    <AlterSequenceRenameClause>
+  end
+
+  rule alter_seq_change_owner
+    space 'owned by' space sequence_name
+    <AlterSequenceChangeOwnerClause>
+  end
+
+  rule alter_seq_change_schema
+    space 'set schema' space [\w_]+
+    <AlterSequenceChangeSchemaClause>
+  end
+
+  rule alter_sequence_clause
+    seq_increment_clause /
+    seq_minval_clause /
+    seq_maxval_clause /
+    seq_start_with_clause /
+    seq_cache_clause /
+    seq_cycle_clause /
+    seq_owned_by_clause /
+    ( space 'restart' space ( 'with' space )? pos_neg_integer+)
+    <AlterSequenceClause>
+  end
+
+
+  rule sequence_name
+    ( schema_name '.' )? (table_name '.' )? column_name
+    <SequenceName>
+  end
+
+  rule if_not_exists_clause
+    space 'if not exists'
+    <IfNotExistsClause>
+  end
+
+  rule seq_start_with_clause
+    space 'start' space ( 'with' space )? pos_neg_integer+
+    <StartsWithClause>
+  end
+
+  rule seq_increment_clause
+    space 'increment' space ( 'by' space )? pos_neg_integer+
+    <IncrementClause>
+  end
+
+  rule seq_minval_clause
+     (space 'minvalue' space pos_neg_integer+ ) / (space 'no minvalue' )
+     <MinValueClause>
+  end
+
+  rule seq_maxval_clause
+    (space 'maxvalue' space pos_neg_integer+ ) / (space 'no maxvalue' )
+    <MaxValueClause>
+  end
+
+  rule seq_cache_clause
+    space 'cache' space cache_name
+    <CacheClause>
+  end
+
+  rule seq_cycle_clause
+    space ( 'no' space)?  'cycle'
+    <CycleClause>
+  end
+
+  rule seq_owned_by_clause
+    space  'owned by' space ( sequence_name / 'none' )
+    <OwnedByClause>
+  end
+
+  rule cache_name
+    [\w_]+
+    <CacheName>
+  end
+
+  rule owner_name
+    [\w_]+
+    <OwnerName>
+  end
+
+  # FIXME
+   rule seq_time_scope
+     'temporary'
+     <SequenceTempTimeScope>
+  end
+
+  rule pos_neg_integer
+    ( '+' / '-' )? [0-9]+
+    <PosNegInteger>
+  end
+
+ #--------------------------------------------------
   rule expression
     prefix_modifier?
     (
@@ -94,10 +602,10 @@ grammar PSql
   end
 
   rule inline_window
-    'over' space (window / name_expression)
+    'over' space (window / field_entity)
   end
 
-  # poorman window parsing right now... we'll need to beef this up if we use windows with parentheses
+  # poor window parsing right now... we'll need to beef this up if we use windows with parentheses
   rule window
     '(' [^\)]* ')'
   end
@@ -135,7 +643,7 @@ grammar PSql
     /
     primitive_literal
     /
-    field_reference
+    field_entity
   end
 
   rule set_operator
@@ -158,7 +666,8 @@ grammar PSql
   end
 
   rule function
-    [\w]+ space* '(' (distinct_predicate space)? (expression / ',' / space)* ')' <Function>
+    [\w]+ space* '(' (distinct_predicate space)? (expression / ',' / space)* ')'
+    <Function>
   end
 
   rule string_literal
@@ -169,6 +678,12 @@ grammar PSql
     '"' ([^\"]+ <Name>) '"'
     /
     [\w]+ <Name>
+  end
+
+  rule field_entity
+    '"' [\w\.\* ]+ '"' <QuotedEntity>
+    /
+    [\w\.\*]+ <Entity>
   end
 
   rule field_glob
@@ -192,6 +707,7 @@ grammar PSql
   # matches at least one space. Handles comments, too.
   rule space
     ([\s]+ / ('--' (!"\n" .)+ ))+
+    <Space>
   end
 
   rule word_boundary
@@ -209,7 +725,7 @@ grammar PSql
       'false' / 'foreign' / 'for' / 'from' /
       'grant' / 'grouped' / 'group' /
       'having' /
-      'initially' / 'intersect' / 'intervalym' / 'interval' / 'into' / 'in' /
+      'initially' / 'intersect' / 'intervalym'  / 'into' / 'in' /
       'join' /
       'ksafe' /
       'leading' / 'limit' / 'localtimestamp' / 'localtime' /
@@ -218,12 +734,125 @@ grammar PSql
       'offset' / 'off' / 'old' / 'only' / 'on' / 'order' / 'or' /
       'pinned' / 'placing' / 'primary' / 'projection' /
       'references' /
-      'schema' / 'segmented' / 'select' / 'session_user' / 'some' / 'sysdate' /
+      'schema' / 'segmented' / 'select' / 'session_user' / 'set' / 'some' / 'sysdate' /
       'table' / 'then' / 'timeseries' / 'to' / 'trailing' / 'true' /
       'unbounded' / 'union' / 'unique' / 'unsegmented' / 'user' / 'using' /
       'when' / 'where' / 'window' / 'within' / 'with'
     )
     word_boundary
+    <SQLKeyword>
   end
 
+
+  #   bit varying [ (n) ]	varbit [ (n) ]
+  # TODO how to handle 'bit varying' ?
+  rule bit_varying_type
+    ( 'bit varying'  /  'bit' / 'varbit' ) integer_in_parenthese?
+    <BitVaryingType>
+  end
+
+  # character [ (n) ]	char [ (n) ]
+  rule character_type
+   (  'character' / 'char') integer_in_parenthese
+   <CharacterType>
+  end
+
+  # character varying [ (n) ]	varchar [ (n) ]
+  #  TODO: how to handle 'character varying'  vs. character_type?
+  rule character_varying_type
+    ( 'character varying' / 'varchar' ) integer_in_parenthese?
+    <VarCharType>
+  end
+
+  rule integer_in_parenthese
+    ( '(' space? [0-9]+ space? ')' )
+    <IntegerInParentheses>
+  end
+
+  #  numeric [ (p, s) ]	decimal [ (p, s) ]
+  rule numeric_type
+    ('numeric' / 'decimal' ) ( '(' space? [0-9]+ (space? ',' space? [0-9]+)?  space? ')' )?
+    <NumericType>
+  end
+
+  #  float [ (p, s) ]	decimal [ (p, s) ]
+  rule float_type
+    ('float' ) ( '(' space? [0-9]+ (space? ',' space? [0-9]+)?  space? ')' )?
+    <FloatType>
+  end
+
+  # FIXME interval type: fields, precision of the fields, etc.
+  # interval [ fields ] [ (p) ]
+  rule interval_type
+    'interval'
+    <IntervalType>
+  end
+
+  # Usage: colname integer NOT NULL DEFAULT nextval('tablename_colname_seq')
+  rule nextval_function_call
+    '(' space? "'" name_expression  "'" space? ')'
+    <NextValFunctionCall>
+  end
+
+
+  # time [ (p) ] [ without time zone ]
+  # time [ (p) ] with time zone
+  rule time_timestamp_type
+    ('time' / 'timestamp' )
+      integer_in_parenthese?
+       with_or_without_timezone_stmt?
+    <TimestampType>
+  end
+
+  rule with_or_without_timezone_stmt
+     (space 'without time zone' ) / (space 'with time zone')
+     <WithOrWithoutTimeZoneClause>
+  end
+
+  # Order is important!
+  rule data_type
+    (
+    'bigint' /	'int8' /
+    'bigserial' /	'serial8' /
+     bit_varying_type /
+    'boolean' /	'bool' /
+    'box' /
+    'bytea' /
+     character_varying_type /
+     character_type /
+
+    'cidr' /
+    'circle' /
+    'date' /
+    'double precision' /	'float8' /
+    float_type /
+    'inet' /
+    'integer' /	'int' / 'int4' /
+    interval_type /
+    'json' /
+    'jsonb' /
+    'line' /
+    'lseg' /
+    'macaddr' /
+    'money' /
+     numeric_type /
+    'path' /
+    'pg_lsn' /
+    'point' /
+    'polygon' /
+    'real' /	'float4' /
+    'smallint' /	'int2' /
+    'smallserial' /	'serial2' /
+    'serial' /	'serial4' /
+    'text' /
+    time_timestamp_type /
+    'tsquery' /
+    'tsvector' /
+    'txid_snapshot' /
+    'uuid' /
+    'xml'
+    )
+    word_boundary
+    <DataType>
+  end
 end

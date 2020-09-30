@@ -17,8 +17,8 @@ class PsqlParser::Parser
   @@parser = PSqlParser.new
 
 
-  def self.parse(sql)
-    d_sql = sql.downcase  # REQUIRED!
+  def self.parse(sql, show_tree: true)
+    d_sql = sql.downcase # REQUIRED!
 
     # parser.parse(d_sql).tap do
     #   d_sql.replace(sql)
@@ -30,8 +30,14 @@ class PsqlParser::Parser
 
     # If the AST is nil then there was an error during parsing
     # we need to report a simple error message to help the user
-    raise Exception, "Parse error at offset: #{parser.index}" if tree.nil?
+    if tree.nil?
+      error_details = parser_error_details(sql, parser)
+      puts error_details
 
+      raise Exception, parser.failure_reason
+    end
+
+    puts remove_syntax_nodes(tree).inspect if show_tree
     tree
   end
 
@@ -41,19 +47,23 @@ class PsqlParser::Parser
   end
 
 
-  #
-  # def self.parser
-  #   @parser ||= VSqlParser.new
-  # end
-  #
-  #   def parse(sql)
-  #     d_sql = sql.downcase
-  #     parser.parse(d_sql).tap do
-  #       d_sql.replace(sql)
-  #     end
-  #   end
-  # Treetop.load(File.join(__dir__, 'vsql_parser.treetop'))
+  def self.parser_error_details(parsed_str, parser)
+    fail_index = parser.max_terminal_failure_index
+    "\n" +
+      ((fail_index > 0) ? parsed_str[0..(fail_index - 1)] : "") + ': ' +
+      parsed_str[(fail_index)..-1] +
+      "\n\n"
+  end
 
+
+  NOISY_NAMES = ['Treetop::Runtime::SyntaxNode', 'PSql::Space'].freeze
+
+  def self.remove_syntax_nodes(root_node)
+    return if (root_node.elements.nil?)
+
+    root_node.elements.delete_if { |node| NOISY_NAMES.include? node.class.name }
+    root_node.elements.each { |node| self.remove_syntax_nodes(node) }
+  end
 
 end
 
