@@ -975,16 +975,16 @@ CREATE TABLE public.breed_profiles ( id integer);
   describe 'SQL files' do
 
     FIXTURES = File.join(__dir__, '..', 'fixtures')
-
-    ENTIRE_RASVAL_SCHEMA = 'rasval_production_20200402_2155.sql'
-    RASVAL_AND_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
-
-    CREATE_TABLES_ONLY = 'rasval_production_20200402_2155-createTables-only.sql'
     SMALL_START_SHORT_TABLE = 'start_create_1_table.sql'
+    CREATE_TABLES_ONLY = 'rasval_production_20200402_2155-createTables-only.sql'
+    RASVAL_AND_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
+    ENTIRE_RASVAL_SCHEMA = 'rasval_production_20200402_2155.sql'
 
     it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+
+    # it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
 
   end
 end
