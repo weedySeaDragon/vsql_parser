@@ -1,0 +1,48 @@
+grammar WholeFile
+
+  rule wholefile
+    sn
+    (content_line / sN)*
+    sn
+  end
+
+
+  rule content_line
+    [ \t]* [\S]+ [^\n]* [\n]
+  end
+
+
+  # =============================
+  #  Whitespace and comments
+  # =============================
+
+  # optional blank line
+  rule sn
+    sN?
+  end
+
+  # optional spaces followed by a newline
+  #   or
+  # comment line preceded by optional spaces
+  rule sN
+    ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+  <SN>
+  end
+
+  # optional space
+  rule s
+    S?
+  end
+
+  # one or more spaces or tabs
+  rule S
+    [ \t]+
+  end
+
+  rule comment_line
+    comment_marker (!"\n" .)* "\n"  <CommentLine>
+  end
+
+  rule comment_marker
+    '--'
+  end
+end
