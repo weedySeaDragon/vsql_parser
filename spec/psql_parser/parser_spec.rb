@@ -261,19 +261,6 @@ EOF
   end
 
 
-  it "comments" do
-    assert_parse <<EOF
-    -- This is a multi-line comment
-    -- it spans multiple lines
-        SELECT a,
-               b, -- comment
-                  -- further
-               c
-        FROM table
-EOF
-  end
-
-
   describe 'DDL (schema) statements' do
 
     describe 'CREATE table' do
@@ -339,7 +326,7 @@ EOF
             assert_parse "CREATE TABLE questions (code decimal(5, 1))"
           end
 
-          xit 'interval' do
+          it 'interval' do
             assert_parse 'CREATE TABLE films (len interval)'
           end
 
@@ -352,12 +339,12 @@ EOF
             assert_parse "CREATE TABLE questions (t time(10) WITH TIME ZONE)"
           end
 
-          xit 'timez' do
+          it 'timez' do
             assert_parse "CREATE TABLE questions (t timez)"
             assert_parse "CREATE TABLE questions (t timez(10))"
-            assert_parse "CREATE TABLE questions (t timez WITHOUt timez ZONE)"
+            assert_parse "CREATE TABLE questions (t timez WITHOUt time ZONE)"
             assert_parse "CREATE TABLE questions (t timez WITH TIME ZONE)"
-            assert_parse "CREATE TABLE questions (t timez(10) WITHOUt timez ZONE)"
+            assert_parse "CREATE TABLE questions (t timez(10) WITHOUt time ZONE)"
             assert_parse "CREATE TABLE questions (t timez(10) WITH TIME ZONE)"
           end
 
@@ -370,12 +357,12 @@ EOF
             assert_parse "CREATE TABLE questions (t timestamp(10) WITH TIME ZONE)"
           end
 
-          xit 'timestampz' do
+          it 'timestampz' do
             assert_parse "CREATE TABLE questions (t timestampzs)"
             assert_parse "CREATE TABLE questions (t timestampz(10))"
-            assert_parse "CREATE TABLE questions (t timestampz WITHOUt timez ZONE)"
+            assert_parse "CREATE TABLE questions (t timestampz WITHOUt time ZONE)"
             assert_parse "CREATE TABLE questions (t timestampz WITH TIME ZONE)"
-            assert_parse "CREATE TABLE questions (t timestampz(10) WITHOUt timez ZONE)"
+            assert_parse "CREATE TABLE questions (t timestampz(10) WITHOUt time ZONE)"
             assert_parse "CREATE TABLE questions (t timestampz(10) WITH TIME ZONE)"
           end
         end
@@ -555,7 +542,7 @@ EOF
         end
       end
 
-      xit 'TABLESPACE' do
+      it 'TABLESPACE' do
         assert_parse "COMMENT ON TABLESPACE something IS 'this'"
       end
 
@@ -994,14 +981,6 @@ CREATE TABLE public.breed_profiles ( id integer);
     it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
     it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
-
-    xit 'RASVAL_AND_BPROFILESl' do
-      sql = ''
-      File.open(File.join(FIXTURES, RASVAL_AND_BPROFILES), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
-      # puts "sql:"
-      # puts sql
-      assert_parse(sql, show_tree: true)
-    end
 
   end
 end

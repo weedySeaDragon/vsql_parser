@@ -507,8 +507,8 @@ grammar PSql
     'schema' /
     'sequence' /
     'server' /
-    'table' /
     'tablespace' /
+    'table' /
     'text search configuration' /
     'text search dictionary' /
     'text search parser' /
@@ -878,7 +878,7 @@ grammar PSql
 
 
   rule time_timestamp_type
-    ('timestamp' / 'time' ) (integer_in_parenthese)? ((sps 'without time zone' ) / (sps 'with time zone'))?
+    ('timestampz' / 'timestamp' / 'timez' / 'time' ) (integer_in_parenthese)? ((sps 'without time zone' ) / (sps 'with time zone'))?
 #    <TimestampType>
   end
 
