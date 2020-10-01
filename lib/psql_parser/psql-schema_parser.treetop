@@ -1,0 +1,911 @@
+grammar PSqlSchema
+
+  rule wholefile
+    sn
+    (ddl_or_query / sN)*
+    sn
+  end
+
+  # ddl_statement must come before query so that any ddl statements that start
+  #  with query keywords are properly parsed (e.g. 'SELECT ...set_config()'
+  rule ddl_or_query
+    s
+    (ddl_statement )
+    s
+    #    <DDLorQuery>
+  end
+
+  rule ddl_statement
+    s
+     ( create_table /
+      alter_table /
+      grant_or_revoke_statement /
+      set_statement /
+      comment_on_stmt /
+      create_sequence /
+      alter_sequence /
+      create_extension /
+      set_config )
+      s
+     [';']? s
+  #    <DDLStatement>
+  end
+
+
+  rule create_table
+    'create' S 'table' s opt_schema_table_name (S columns)?
+    #    <CreateTable>
+  end
+
+  rule columns
+    s '(' [\s]* column_specification next_column* [\s]* ')'
+  end
+
+  rule next_column
+    ( [\s]* ',' [\s]* column_specification  )
+  end
+
+
+  rule alter_table
+    'alter' S 'table' S only_clause? if_exists_clause? opt_schema_table_name
+    sn
+    (S '*')?
+    sn
+     (  add_table_constraint /
+        alter_seq_rename /
+        alter_seq_change_owner /
+        alter_seq_change_schema  )
+      #    <AlterTable>
+  end
+
+  rule add_table_constraint
+    'add' S table_constraint (S 'not valid')?
+  end
+
+
+  # [ CONSTRAINT constraint_name ]
+  #    { CHECK ( expression ) [ NO INHERIT ] |
+  #      UNIQUE ( column_name [, ... ] ) index_parameters |
+  #      PRIMARY KEY ( column_name [, ... ] ) index_parameters |
+  #      EXCLUDE [ USING index_method ] ( exclude_element WITH operator [, ... ] ) index_parameters [ WHERE ( predicate ) ] |
+  #      FOREIGN KEY ( column_name [, ... ] )
+  #      REFERENCES reftable [ ( refcolumn [, ... ] ) ]
+  #      [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE action ] [ ON UPDATE action ] }
+  #
+  #    [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+  # TODO: this is incomplete.  It does not implement all of the possibilities
+  rule table_constraint
+    'constraint' S [\w]+ S
+      ( foreign_key_clause s /
+        references_clause s )*
+    ( S deferrable_clause)?
+    ( S immediate_clause)?
+  end
+
+
+  # FOREIGN KEY ( column_name [, ... ] )
+  rule foreign_key_clause
+    'foreign' S 'key' s '(' s column_names   s ')' sn
+  end
+
+  rule only_clause
+    'only' S
+  end
+
+  rule if_exists_clause
+    'if exists' S
+  end
+
+  rule table_scope
+    ( ( ( 'global' / 'local') S)*  ('temporary' / 'temp') )* ('unlogged')*
+      #     <TableScope>
+  end
+
+  # The optionally schema-qualified name of a table
+  rule opt_schema_table_name
+    ( [\w]+ '.' )? [\w]+
+      #    <OptionalSchemaTableName>
+  end
+
+
+  rule column_specification
+    sn column_name S data_type
+      ( ( S constraint_definition )?
+        ( S column_collation )?
+        ( S deferrable_clause)?
+        ( S immediate_clause)?
+        ( S column_constraint)* )?
+      #    <ColumnSpecification>
+  end
+
+
+  rule column_name
+    [\w_]+
+      #    <ColumnName>
+  end
+
+  rule column_names
+    column_name (list_separator column_name)?
+  end
+
+  rule column_collation
+    'collate' S [\w.]+
+      #    <ColumnCollateClause>
+  end
+
+  rule column_constraint
+    ( default_expression s ) /
+    ( primary_key_definition s ) /
+    ( unique_definition s ) /
+    ( null_or_not_clause s ) /
+    ( check_expression s ) /
+    ( references_clause s )
+      #    <ColumnConstraint>
+  end
+
+  rule deferrable_clause
+     'deferrable' / 'not deferrable'
+      #    <DeferrableClause>
+  end
+
+  rule immediate_clause
+    'initially deferred' / 'initially immediate'
+     #     <ImmediateClause>
+  end
+
+  rule constraint_definition
+    'constraint' S [\w]+
+      #    <ConstraintDefinition>
+  end
+
+  rule null_or_not_clause
+    'null' / 'not null'
+      #    <NullOrNotClause>
+  end
+
+  rule default_expression
+    'default' S expression
+      #    <DefaultExpression>
+  end
+
+  rule primary_key_definition
+    'primary key'
+      (S columns_in_parentheses )?
+      (S (using_index_tablespace_parameters)? )?
+      #      <PrimaryKeyDefinition>
+  end
+
+  rule unique_definition
+    'unique'
+      (S columns_in_parentheses )?
+      (S (using_index_tablespace_parameters)? )?
+      #      <UniqueDefinition>
+  end
+
+  rule check_expression
+    'check'
+      ( S '(' s expression s ')' )?
+      ( S 'no inherit' s)?
+      #      <CheckExpression>
+  end
+
+  # REFERENCES reftable [ ( refcolumn [, ... ] ) ]
+  rule references_clause
+    'references' S opt_schema_table_name
+      ( s '(' s column_names   s ')' )?
+      ( S ('match full' / 'match partial' / 'match simple') )?
+      #      <ReferencesDefinition>
+  end
+
+  rule columns_in_parentheses
+   ( '(' s column_name (',' s column_name)* s ')' s)
+      #   <ColumnsInParentheses>
+  end
+
+  # TODO: This is incomplete. It does not include the '[ WITH ( storage_parameter [= value] [, ... ] ) ]' clause
+  rule using_index_tablespace_parameters
+    (s 'using index tablespace' S opt_schema_table_name)
+      #    <UsingIndexTablespaceParameters>
+  end
+
+  # CREATE EXTENSION [ IF NOT EXISTS ] extension_name
+  #        [ WITH ] [ SCHEMA schema_name ]
+  #                 [ VERSION version ]
+  #                 [ FROM old_version ]
+  #                 [ CASCADE ]
+  rule create_extension
+    'create' s 'extension' (S 'if' S 'not' S 'exists')?
+      S extension_name
+      ( (S ('with' S)? 'schema' S schema_name) /
+        (S 'version' S ( quoted_str_with_spaces / [\w]+ ) ) /
+        (S 'from' S [\w]+ ) /
+        (S 'cascade')
+      )*
+  end
+
+  rule set_config
+    'select' S schema_name '.set_config(' [^)]+ ')'
+  end
+
+  rule quoted_str_with_spaces
+    "'" [^']* "'"
+  end
+
+  rule extension_name
+    [\w]+
+  end
+
+  rule grant_or_revoke_statement
+    revoke_statement /
+    grant_priv_on_schema /
+    grant_roles_on_schema
+    #     <GrantOrRevokeStatement>
+ end
+
+ rule grant_roles_on_schema
+  'grant' S role_names S 'on schema' S schema_name S 'to' S role_specifications
+        (S 'with admin option')?
+       (S 'granted by' S role_specifications)?
+ end
+
+
+  # GRANT { { CREATE | USAGE } [, ...] | ALL [ PRIVILEGES ] }
+  #        ON SCHEMA schema_name [, ...]
+  #        TO role_specification [, ...] [ WITH GRANT OPTION ]
+  rule grant_priv_on_schema
+    'grant' S ('create' / 'usage' / 'ALL') S  ('privileges' S)?
+      'on' S 'schema' S schema_name S
+      'to' S role_specification ('with grant option')?
+  end
+
+  rule revoke_stmt_start
+    'revoke' S ('grant' S 'option' S 'for' S)?
+  end
+
+  rule optional_cascade_or_restrict
+    ('cascade' / 'restrict')?
+  end
+
+  rule revoke_statement
+    ( revoke_priv_on_schema / revoke_roles_on_schema)
+  end
+
+
+  # REVOKE [ GRANT OPTION FOR ]
+  #        { { CREATE | USAGE } [, ...] | ALL [ PRIVILEGES ] }
+  #        ON SCHEMA schema_name [, ...]
+  #        FROM role_specification [, ...]
+  #        [ CASCADE | RESTRICT ]
+  rule revoke_priv_on_schema
+    'revoke' ( S 'grant' s 'option' s 'for')?
+      S ( 'create' / 'usage' / 'all' ) S  ('privileges' S)?
+      'on' S 'schema' S schema_name S
+      'from' S role_specification
+      (S ('cascade' / 'restrict') )?
+  end
+
+  rule create_usage_privs
+    ('create' / 'usage' / ('create' s ',' s 'usage') / ('usage' list_separator 'create'))
+  end
+
+  rule revoke_roles_on_schema
+    'revoke' ( S 'admin' s 'option' s 'for')?
+       S (role_names) S 'on schema' S schema_name S 'from' S role_specifications
+        (S 'with admin option')?
+       (S 'granted by' S role_specifications)?
+       (S ('cascade' / 'restrict') )?
+  end
+
+
+  rule role_names
+    role_name (list_separator role_name )*
+      #    <RoleNames>
+  end
+
+  rule role_specifications
+    role_specification (s ',' s role_specification )*
+      #    <RoleSpecifications>
+  end
+
+  rule role_specification
+   ('group' req_space_or_comment)? role_name / 'public' / 'current_user' / 'session_user'
+      #   <RoleSpecifications>
+  end
+
+  # not schema qualified
+  rule table_name
+    [\w]+
+      #    <TableName>
+  end
+
+  rule schema_name
+    [\w]+
+      #    <SchemaName>
+  end
+
+  rule role_name
+    [\w]+
+      #    <RoleName>
+  end
+
+  rule set_statement
+    'set' S (session_local_scope S)?
+       configuration_parameter
+       ( ( S 'to' S ) / ( s '=' s ) )
+       ( quoted_str / [\w]+ / primitive_literal)
+      #       <SetConfigParamStatement>
+  end
+
+  rule quoted_str
+    "'" [\w]* "'"
+  end
+
+  rule session_local_scope
+    'session' / 'local'
+      #    <SessionLocalScope>
+  end
+
+  rule configuration_parameter
+    [\w.]+  #<ConfigParameter>
+  end
+
+  rule comment_on_stmt
+    ( 'comment' S 'on' S
+       ( comment_target_on_object /
+        comment_target_aggregate /
+        procedural_language_comment_target
+      )
+    ) S 'is' S "'" comment_text "'"
+      #    <CommentOnStatement>
+  end
+
+  rule comment_text
+    [^']+
+    #    <CommentText>
+  end
+
+  rule comment_target_aggregate
+   'aggregate' S aggregate_name S '(' s aggregate_signature s ')'
+    #    <CommentTargetAggregate>
+  end
+
+  rule aggregate_name
+    [\w]+
+    #    <AggregateName>
+  end
+
+  rule argmode
+    'inout' / 'in' / 'out' / 'variadic'
+    #    <AggregateMode>
+  end
+
+  # TODO: this isn't really accurate.  but it'll cover lots of cases
+  rule argtype
+    data_type
+    #    <AggregateType>
+  end
+
+  rule argtypes
+    data_type ( list_separator argtype)*
+    #    <AggregateTypes>
+  end
+
+  rule arg_mode_name_type
+    (argmode req_space_or_comment)? (aggregate_name req_space_or_comment)? data_type
+    #    <AggregateModeNameTypesClause>
+  end
+
+
+  rule aggregate_signature
+    '*'  / arg_mode_name_type (list_separator arg_mode_name_type)?  /
+     ( (argmode S)? 'order by' S arg_mode_name_type (list_separator arg_mode_name_type)? )
+  end
+
+
+  rule procedural_language_comment_target
+    [\w]+
+    #    <ProceduralLanguageCommentTarget>
+  end
+
+  rule comment_target_on_object
+    comment_target_object req_space_or_comment comment_object_name
+    #    <CommentTargetOnObjectClause>
+  end
+
+  rule comment_target_object
+    'access method' /
+    'cast' /
+    'collation' /
+    'column' /
+    'constraint' /
+    'conversion' /
+    'database' /
+    'domain' /
+    'extension' /
+    'event trigger' /
+    'foreign table' /
+    'foreign data wrapper' /
+    'function' /
+    'index' /
+    'large object' /
+    'materialized view' /
+    'operator' /
+    'operator class' /
+    'operator family'  /
+    'policy' /
+    'role' /
+    'rule' /
+    'schema' /
+    'sequence' /
+    'server' /
+    'tablespace' /
+    'table' /
+    'text search configuration' /
+    'text search dictionary' /
+    'text search parser' /
+    'text search template' /
+    'transform for' /
+    'trigger'  /
+    'type'/
+    'view'
+    #    <CommentTargetObjectKeyword>
+  end
+
+  rule comment_object_name
+    [\w]+
+    #    <CommentTargetObjectName>
+  end
+
+
+  rule create_sequence
+    'create' req_space_or_comment 'sequence' req_space_or_comment ( 'temporary' req_space_or_comment)? sequence_name
+      (seq_increment_clause /
+           seq_start_with_clause /
+           seq_minval_clause /
+           seq_maxval_clause /
+           seq_cache_clause /
+           seq_cycle_clause /
+           if_not_exists_clause /
+           seq_owned_by_clause )*
+    #    <CreateSequence>
+  end
+
+  rule alter_sequence
+     'alter sequence' req_space_or_comment ( 'if exists' req_space_or_comment )? sequence_name
+          ( alter_sequence_clause* ) /
+          alter_seq_rename /
+          alter_seq_change_owner /
+          alter_seq_change_schema
+    #     <AlterSequence>
+  end
+
+  rule alter_seq_rename
+    req_space_or_comment 'rename to' req_space_or_comment sequence_name
+    #    <AlterSequenceRenameClause>
+  end
+
+  rule alter_seq_change_owner
+    req_space_or_comment 'owned by' req_space_or_comment sequence_name
+    #    <AlterSequenceChangeOwnerClause>
+  end
+
+  rule alter_seq_change_schema
+    req_space_or_comment 'set schema' req_space_or_comment [\w]+
+    #    <AlterSequenceChangeSchemaClause>
+  end
+
+  rule alter_sequence_clause
+    seq_owned_by_clause /
+    seq_increment_clause /
+    seq_minval_clause /
+    seq_maxval_clause /
+    seq_start_with_clause /
+    seq_cache_clause /
+    seq_cycle_clause /
+    alter_seq_rename /
+    alter_seq_change_schema /
+    ( req_space_or_comment 'restart' req_space_or_comment ( 'with' req_space_or_comment )? pos_neg_integer+)
+    #    <AlterSequenceClause>
+  end
+
+  rule sequence_name
+    ( schema_name '.' )? (table_name '.' )? column_name
+    #    <SequenceName>
+  end
+
+  rule if_not_exists_clause
+    req_space_or_comment 'if not exists'
+    #    <IfNotExistsClause>
+  end
+
+  rule seq_start_with_clause
+    req_space_or_comment 'start' req_space_or_comment ( 'with' req_space_or_comment )? pos_neg_integer+
+    #    <StartsWithClause>
+  end
+
+  rule seq_increment_clause
+    req_space_or_comment 'increment' req_space_or_comment ( 'by' req_space_or_comment )? pos_neg_integer+
+    #    <IncrementClause>
+  end
+
+  rule seq_minval_clause
+     (req_space_or_comment 'minvalue' req_space_or_comment pos_neg_integer+ ) / (req_space_or_comment 'no minvalue' )
+    #     <MinValueClause>
+  end
+
+  rule seq_maxval_clause
+    (req_space_or_comment 'maxvalue' req_space_or_comment pos_neg_integer+ ) / (req_space_or_comment 'no maxvalue' )
+    #    <MaxValueClause>
+  end
+
+  rule seq_cache_clause
+    req_space_or_comment 'cache' req_space_or_comment cache_name
+    #    <CacheClause>
+  end
+
+  rule seq_cycle_clause
+    req_space_or_comment ( 'no' req_space_or_comment)?  'cycle'
+    #    <CycleClause>
+  end
+
+  rule seq_owned_by_clause
+    req_space_or_comment  'owned by' req_space_or_comment ( sequence_name / 'none' )
+    #    <OwnedByClause>
+  end
+
+  rule cache_name
+    [\w]+
+    #    <CacheName>
+  end
+
+  rule owner_name
+    [\w]+
+    #    <OwnerName>
+  end
+
+   rule seq_time_scope
+     'temporary'
+    #     <SequenceTempTimeScope>
+  end
+
+  rule pos_neg_integer
+    ( '+' / '-' )? [0-9]+
+    #    <PosNegInteger>
+  end
+
+ #--------------------------------------------------
+  rule expression
+    prefix_modifier?
+    (
+      '(' query ')' #<Query>
+      /
+      '(' req_space_or_comment? expression req_space_or_comment? ')' #<Entity>
+      /
+      sub_expression)
+    (req_space_or_comment? inline_window)?
+    ('::' [\w]+)? # cast
+    (req_space_or_comment? set_operator req_space_or_comment? (set))*
+    (req_space_or_comment? operator req_space_or_comment? expression)?
+  end
+
+  rule prefix_modifier
+    'not' req_space_or_comment
+    /
+    '-' req_space_or_comment?
+  end
+
+  rule inline_window
+    'over' req_space_or_comment (window / field_entity)
+  end
+
+  # poor window parsing right now... we'll need to beef this up if we use windows with parentheses
+  rule window
+    '(' [^\)]* ')'
+  end
+
+  rule set
+    set_literal
+    /
+    '(' query ')'
+  end
+
+  rule distinct_predicate
+    'distinct' / 'all'
+  end
+
+  rule set_literal
+    '(' req_space_or_comment? primitive_literal (req_space_or_comment? ',' req_space_or_comment? primitive_literal)* req_space_or_comment? ')'
+  end
+
+  rule primitive_literal
+    interval_literal / numeric_literal / string_literal
+  end
+
+  rule interval_literal
+    'interval' req_space_or_comment "'" [\w ]+ "'"
+  end
+
+  rule numeric_literal
+    [0-9]+ ("." [0-9]+)?
+  end
+
+  rule sub_expression
+    case_statement
+    /
+    function
+    /
+    primitive_literal
+    /
+    field_entity
+  end
+
+  rule set_operator
+    'not in' / 'in' &req_space_or_comment
+  end
+
+  rule operator
+    [+\-/=\|><!]+
+    /
+    ('is not' / 'is' / 'like' / 'between' / 'and' / 'or') &req_space_or_comment
+  end
+
+  rule case_statement
+    'case'
+    (req_space_or_comment !('when') expression)?
+    (req_space_or_comment 'when' req_space_or_comment expression req_space_or_comment 'then' req_space_or_comment expression)*
+    (req_space_or_comment 'else' req_space_or_comment expression)?
+    req_space_or_comment 'end' # <Entity>
+
+  end
+
+  rule function
+    [\w]+ req_space_or_comment* '(' (distinct_predicate req_space_or_comment)? (expression / ',' / req_space_or_comment)* ')'
+      #    <Function>
+  end
+
+  rule string_literal
+    "'" [^\']+ "'"
+  end
+
+  rule name_expression
+    '"' ([^\"]+ <Name>) '"'
+    /
+    [\w]+ #<Name>
+  end
+
+  rule field_entity
+    '"' [\w\.\* ]+ '"' #<QuotedEntity>
+    /
+    [\w\.\*]+ #<Entity>
+  end
+
+  rule field_glob
+    '*' #<FieldGlob>
+  end
+
+  rule field_reference
+    (name_expression "." <TablePart>)? (name_expression / field_glob) #<FieldRef>
+  end
+
+  rule from_statement
+    'from' req_space_or_comment+ from_expression (req_space_or_comment alias)? #<Statement>
+  end
+
+  rule from_expression
+    [\w]+ #<Entity>
+    /
+    '(' query ')' #<Entity>
+  end
+
+
+  # matches at least one space. Handles comments, too.
+  rule req_space_or_comment
+    ([\s]+ / ('--' (!"\n" .)+ ))+
+    #    <Space>
+  end
+
+  rule word_boundary
+    ![\w]
+  end
+
+  rule keyword
+    # 'select' / 'from' / 'inner' / 'outer' / 'full' / 'left' / 'right' / 'join' / 'on' / 'where' / 'group by' / 'order by' / 'having' / 'limit' / 'union'
+    (
+      'all' / 'analyse' / 'analyze' / 'and' / 'any' / 'array' / 'asc' / 'as' /
+      'binary' / 'both' /
+      'case' / 'cast' / 'check' / 'column' / 'constraint' / 'correlation' / 'create' / 'current_database' / 'current_date' / 'current_schema' / 'current_timestamp' / 'current_time' / 'current_user' /
+      'default' / 'deferrable' / 'desc' / 'distinct' / 'do' /
+      'else' / 'encoded' / 'end' / 'except' /
+      'false' / 'foreign' / 'for' / 'from' /
+      'grant' / 'grouped' / 'group' /
+      'having' /
+      'initially' / 'intersect' / 'intervalym'  / 'into' / 'in' /
+      'join' /
+      'ksafe' /
+      'leading' / 'limit' / 'localtimestamp' / 'localtime' /
+      'match' /
+      'new' / 'not' / 'nullsequal' / 'null' /
+      'offset' / 'off' / 'old' / 'only' / 'on' / 'order' / 'or' /
+      'pinned' / 'placing' / 'primary' / 'projection' /
+      'references' /
+      'schema' / 'segmented' / 'select' / 'session_user' / 'set' / 'some' / 'sysdate' /
+      'table' / 'then' / 'timeseries' / 'to' / 'trailing' / 'true' /
+      'unbounded' / 'union' / 'unique' / 'unsegmented' / 'user' / 'using' /
+      'when' / 'where' / 'window' / 'within' / 'with'
+    )
+    word_boundary
+      #    <SQLKeyword>
+  end
+
+  #   bit varying [ (n) ]	varbit [ (n) ]
+  rule bit_varying_type
+    ( 'bit varying'  /  'bit' / 'varbit' ) integer_in_parenthese?
+      #    <BitVaryingType>
+  end
+
+  # character [ (n) ]	char [ (n) ]
+  rule character_type
+   (  'character' / 'char') integer_in_parenthese?
+      #   <CharacterType>
+  end
+
+  # character varying [ (n) ]	varchar [ (n) ]
+  rule character_varying_type
+    ( 'character varying' / 'varchar' ) integer_in_parenthese?
+      #    <VarCharType>
+  end
+
+  rule integer_in_parenthese
+    ( '(' s [0-9]+ s ')' )
+      #    <IntegerInParentheses>
+  end
+
+  #  numeric [ (p, s) ]	decimal [ (p, s) ]
+  rule numeric_type
+    ('numeric' / 'decimal' ) number_precision?
+    #    <NumericType>
+  end
+
+  #  float [ (p, s) ]	decimal [ (p, s) ]
+  rule float_type
+    'float' number_precision?
+    #    <FloatType>
+  end
+
+  rule number_precision
+    '(' s [0-9]+ (s ',' s [0-9]+)?  s ')'
+  end
+
+  # interval [ fields ] [ (p) ]
+  rule interval_type
+    'interval' ( '(' s [0-6]+ s ')' )?
+      ( S (
+        'year to month'/
+        'year' /
+        'month' /
+        'day to hour' /
+        'day to minute' /
+        'day to second' /
+        'day' /
+        'hour to minute' /
+        'hour to second' /
+        'hour' /
+        'minute to second' /
+        'minute' /
+        'second' ) )?
+    #    <IntervalType>
+  end
+
+  # Usage: colname integer NOT NULL DEFAULT nextval('tablename_colname_seq')
+  rule nextval_function_call
+    '(' s "'" name_expression  "'" s ')'
+    #    <NextValFunctionCall>
+  end
+
+
+  rule time_timestamp_type
+    ('timestampz' / 'timestamp' / 'timez' / 'time' ) (integer_in_parenthese)? ((S 'without time zone' ) / (S 'with time zone'))?
+    #    <TimestampType>
+  end
+
+  rule with_or_without_timezone_stmt
+    (S 'without time zone' ) / (S 'with time zone')
+    #     <WithOrWithoutTimeZoneClause>
+  end
+
+  # Order is important!
+  rule data_type
+    (
+    'bigint' /	'int8' /
+    'bigserial' /	'serial8' /
+     bit_varying_type /
+    'boolean' /	'bool' /
+    'box' /
+    'bytea' /
+     character_varying_type /
+     character_type /
+    'cidr' /
+    'circle' /
+    'date' /
+    'double precision' /	'float8' /
+    float_type /
+    'inet' /
+    interval_type /
+    'integer' /	'int' / 'int4' /
+    'json' /
+    'line' /
+    'lseg' /
+    'macaddr' /
+    'money' /
+     numeric_type /
+    'path' /
+    'pg_lsn' /
+    'point' /
+    'polygon' /
+    'real' /	'float4' /
+    'smallint' /	'int2' /
+    'smallserial' /	'serial2' /
+    'serial' /	'serial4' /
+    'text' /
+    time_timestamp_type /
+    'tsquery' /
+    'tsvector' /
+    'txid_snapshot' /
+    'uuid' /
+    'xml'
+    )
+    word_boundary
+    #    <DataType>
+  end
+
+
+  rule list_separator
+    [\s]* ',' [\s]*
+    #    <ListSeparator>
+  end
+
+
+  # =============================
+  #  Whitespace and comments
+  #
+  #  Here are four whitespace helpers:
+  #    s in the name means “space”,
+  #    n means newline,
+  #   and capitalization means that the capitalized part is REQUIRED
+  #      (contrary to being optional).
+  #
+  #  from https://whitequark.org/blog/2011/09/08/treetop-typical-errors/
+  # =============================
+
+  # optional space
+  rule s
+    S?
+  end
+
+  # REQUIRED one or more spaces or tabs
+  rule S
+    [ \t]+
+  end
+
+  # optional blank line (optionally with leading spaces or tabs)
+  rule sn
+    sN?
+  end
+
+  rule comment_line
+    comment_marker (!"\n" .)* "\n"  #<CommentLine>
+  end
+
+  rule comment_marker
+    '--'
+  end
+
+  # REQUIRED NEWLINE
+  # optional spaces followed by a newline
+  #   or
+  # optional comment line followed by a newline
+  rule sN
+    ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+
+  end
+
+end

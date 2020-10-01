@@ -1,13 +1,12 @@
 require 'treetop'
 require_relative './psql_node_extensions'
-require_relative './wholefile_node_extensions'
 
 
 class PsqlParser::Parser
 
   PSQLPARSER_BASE_PATH ||= File.expand_path(__dir__)
   PSQL_GRAMMER_FN = 'psql_parser.treetop'
-  FILE_GRAMMER_FN = 'wholefile_parser.treetop'
+  FILE_GRAMMER_FN = 'psql-schema_parser.treetop'
 
 
   # This call to Treetop will create a Parser class based on the root name in the grammar file.
@@ -22,13 +21,13 @@ class PsqlParser::Parser
   end
 
 
-  def self.file_parser
-    @@parser ||= WholeFileParser.new
+  def self.schema_parser
+    @@parser ||= PSqlSchemaParser.new
   end
 
 
-  def self.parse_file(sql, show_tree: true)
-    parse(sql, grammarparser: file_parser, show_tree: show_tree)
+  def self.parse_schema(sql, show_tree: true)
+    parse(sql, grammarparser: schema_parser, show_tree: show_tree)
   end
 
 
