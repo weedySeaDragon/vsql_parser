@@ -5,8 +5,8 @@ RSpec.shared_examples 'it can parse sql file' do |sql_fn|
   it "#{sql_fn}" do
     sql = ''
     File.open(File.join(FIXTURES, sql_fn), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
-    puts "sql:"
-    puts sql
+    # puts "sql:"
+    # puts sql
     assert_parse(sql, show_tree: true)
   end
 end
@@ -742,69 +742,184 @@ EOF
     end
 
 
-    describe 'GRANT, REVOKE' do
-      grant_revoke = %w(GRANT REVOKE)
-      grant_revoke.each do |grant_or_revoke|
+    describe 'GRANT' do
 
+      describe 'privileges on schema to role_specifications' do
         # GRANT role_name [, ...] TO role_specification [, ...]
         #     [ WITH ADMIN OPTION ]
         #     [ GRANTED BY role_specification ]
-        #
-        #
+        # FIXME:  multiple role_names and role_specifications
+
+        all_to_role = "GRANT ALL ON SCHEMA public TO postgres"
+        all_to_public = "GRANT ALL ON SCHEMA public TO PUBLIC"
+        this_to_them = "GRANT this on schema public to them"
+        this_to_group_them = "GRANT this on schema public to GROUP them"
+        this_that_to_them = "GRANT this, that on schema public to them"
+        this_that_to_them_etc = "GRANT this, that on schema public to them, us, public, current_user"
+
+        base_grant_stmts = [all_to_role, all_to_public, this_to_them,
+                            this_to_group_them, this_that_to_them,
+                            this_that_to_them_etc]
+
+        it 'basic GRANT statements' do
+          assert_parse all_to_role
+          assert_parse all_to_public
+          assert_parse "GRANT ALL ON SCHEMA public TO CURRENT_USER"
+          assert_parse "GRANT ALL ON SCHEMA public TO SESSION_USER"
+          assert_parse this_to_them
+          assert_parse this_to_group_them
+          assert_parse this_that_to_them
+          assert_parse this_that_to_them_etc
+        end
+
+        context 'WITH ADMIN OPTION' do
+          base_grant_stmts.each do |stmt|
+            it stmt do
+              assert_parse "#{stmt} WITH ADMIN OPTION"
+            end
+          end
+        end
+
+        context 'GRANTED BY' do
+          base_grant_stmts.each do |stmt|
+            it stmt do
+              assert_parse "#{stmt} GRANTED BY us"
+              assert_parse "#{stmt} GRANTED BY GROUP us"
+              assert_parse "#{stmt} GRANTED BY public"
+              assert_parse "#{stmt} GRANTED BY current_user"
+              assert_parse "#{stmt} GRANTED BY session_user"
+              assert_parse "#{stmt} GRANTED BY session_user, public, GROUP US"
+            end
+          end
+        end
+      end
+
+    end
+
+
+    describe 'REVOKE' do
+
+      describe 'privileges on schemas' do
         # REVOKE [ GRANT OPTION FOR ]
         #     { { CREATE | USAGE } [, ...] | ALL [ PRIVILEGES ] }
         #     ON SCHEMA schema_name [, ...]
         #     FROM role_specification [, ...]
         #     [ CASCADE | RESTRICT ]
+        # FIXME: GRANT OPTION FOR
+        #   create | usage ..., privileges,
+        #    multiple schemas, multiple roled_specifications
 
-        describe grant_or_revoke do
+        all_from_role = "ALL ON SCHEMA public FROM postgres"
+        all_from_public = "ALL ON SCHEMA public FROM PUBLIC"
+        all_from_current_user = "ALL ON SCHEMA public FROM CURRENT_USER"
+        all_from_session_user = "ALL ON SCHEMA public FROM SESSION_USER"
+        create_from_role = "CREATE ON SCHEMA public FROM postgres"
+        usage_from_role = "USAGE ON SCHEMA public FROM postgres"
 
-          all_to_role = "#{grant_or_revoke} ALL ON SCHEMA public TO postgres"
-          all_to_public = "#{grant_or_revoke} ALL ON SCHEMA public TO PUBLIC"
-          this_to_them = "#{grant_or_revoke} this on schema public to them"
-          this_to_group_them = "#{grant_or_revoke} this on schema public to GROUP them"
-          this_that_to_them = "#{grant_or_revoke} this, that on schema public to them"
-          this_that_to_them_etc = "#{grant_or_revoke} this, that on schema public to them, us, public, current_user"
-          base_grant_stmts = [all_to_role, all_to_public, this_to_them,
-                              this_to_group_them, this_that_to_them,
-                              this_that_to_them_etc]
+        base_revoke_stmts = [all_from_role, all_from_public,
+                             all_from_current_user,
+                             all_from_session_user,
+                             create_from_role, usage_from_role]
 
-          it grant_or_revoke do
-            assert_parse all_to_role
-            assert_parse all_to_public
-            assert_parse "#{grant_or_revoke} ALL ON SCHEMA public TO CURRENT_USER"
-            assert_parse "#{grant_or_revoke} ALL ON SCHEMA public TO SESSION_USER"
-            assert_parse this_to_them
-            assert_parse this_to_group_them
-            assert_parse this_that_to_them
-            assert_parse this_that_to_them_etc
-          end
-
-          context 'WITH ADMIN OPTION' do
-            base_grant_stmts.each do |stmt|
-              it stmt do
-                assert_parse "#{stmt} WITH ADMIN OPTION"
-              end
+        context 'basic REVOKE statements' do
+          base_revoke_stmts.each do |base_stmt|
+            base_revoke_stmt = "REVOKE #{base_stmt}"
+            it base_revoke_stmt do
+              assert_parse base_revoke_stmt
             end
           end
+        end
 
-          context 'GRANTED BY' do
-            base_grant_stmts.each do |stmt|
-              it stmt do
-                assert_parse "#{stmt} GRANTED BY us"
-                assert_parse "#{stmt} GRANTED BY GROUP us"
-                assert_parse "#{stmt} GRANTED BY public"
-                assert_parse "#{stmt} GRANTED BY current_user"
-                assert_parse "#{stmt} GRANTED BY session_user"
-                assert_parse "#{stmt} GRANTED BY session_user, public, GROUP US"
-              end
+        context 'grant option for' do
+          base_revoke_stmts.each do |base_stmt|
+            base_grant_opt_for_stmt = "REVOKE GRANT OPTION FOR #{base_stmt}"
+            it base_grant_opt_for_stmt do
+              assert_parse base_grant_opt_for_stmt
+            end
+          end
+        end
+
+        context 'all privileges' do
+          [all_from_role, all_from_public,
+           all_from_current_user,
+           all_from_session_user].each do |all_stmt|
+             all_priv_stmt = "REVOKE #{all_stmt.gsub('ALL', 'ALL PRIVILEGES')}"
+             it all_priv_stmt do
+               assert_parse all_priv_stmt
+             end
+          end
+        end
+
+        context 'CASCADE' do
+          base_revoke_stmts.each do |stmt|
+            revoke_cascade_stmt = "REVOKE #{stmt} CASCADE"
+            it revoke_cascade_stmt do
+              assert_parse revoke_cascade_stmt
+            end
+          end
+        end
+
+        context 'RESTRICT' do
+          base_revoke_stmts.each do |stmt|
+            revoke_restrict_stmt = "REVOKE #{stmt} RESTRICT"
+            it revoke_restrict_stmt do
+              assert_parse revoke_restrict_stmt
+            end
+          end
+        end
+
+
+      end
+
+
+      describe 'roles from role_specifications' do
+        # REVOKE [ ADMIN OPTION FOR ]
+        # role_name [, ...] FROM role_specification [, ...]
+        # [ GRANTED BY role_specification ]
+        # [ CASCADE | RESTRICT ]
+        # FIXME: ADMIN OPTION FOR, GRANTED BY
+
+        all_from_role = "REVOKE ALL ON SCHEMA public FROM postgres"
+        all_from_public = "REVOKE ALL ON SCHEMA public FROM PUBLIC"
+        this_from_them = "REVOKE this on schema public from them"
+        this_from_group_them = "REVOKE this on schema public from GROUP them"
+        this_that_from_them = "REVOKE this, that on schema public from them"
+        this_that_from_them_etc = "REVOKE this, that on schema public from them, us, public, current_user"
+
+        base_revoke_stmts = [all_from_role, all_from_public, this_from_them,
+                             this_from_group_them, this_that_from_them,
+                             this_that_from_them_etc]
+
+        it 'basic REVOKE statements' do
+          assert_parse all_from_role
+          assert_parse all_from_public
+          assert_parse "REVOKE ALL ON SCHEMA public FROM CURRENT_USER"
+          assert_parse "REVOKE ALL ON SCHEMA public FROM SESSION_USER"
+          assert_parse this_from_them
+          assert_parse this_from_group_them
+          assert_parse this_that_from_them
+          assert_parse this_that_from_them_etc
+        end
+
+        context 'CASCADE' do
+          base_revoke_stmts.each do |stmt|
+            it stmt do
+              assert_parse "#{stmt} CASCADE"
+            end
+          end
+        end
+
+        context 'RESTRICT' do
+          base_revoke_stmts.each do |stmt|
+            it stmt do
+              assert_parse "#{stmt} RESTRICT"
             end
           end
         end
 
       end
-    end
 
+    end
 
     it 'example with interval hour to minute from postgres doc' do
       assert_parse "CREATE TABLE films (" +
@@ -874,18 +989,21 @@ CREATE TABLE public.breed_profiles ( id integer);
 
     FIXTURES = File.join(__dir__, '..', 'fixtures')
 
-    RASVAL_ANS_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
+    ENTIRE_RASVAL_SCHEMA = 'rasval_production_20200402_2155.sql'
+    RASVAL_AND_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
 
     CREATE_TABLES_ONLY = 'rasval_production_20200402_2155-createTables-only.sql'
+    SMALL_START_SHORT_TABLE = 'start_create_1_table.sql'
 
+    it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
 
-    xit 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql' do
+    xit 'RASVAL_AND_BPROFILESl' do
       sql = ''
-      File.open(File.join(FIXTURES, RASVAL_ANS_BPROFILES), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
-      puts "sql:"
-      puts sql
+      File.open(File.join(FIXTURES, RASVAL_AND_BPROFILES), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
+      # puts "sql:"
+      # puts sql
       assert_parse(sql, show_tree: true)
     end
 

@@ -6,30 +6,31 @@ grammar PSql
     sn
   end
 
-
+  # [ \t]* [\S]+ [^\n]* [\n]
   rule content_line
-    [ \t]* [\S]+ [^\n]* [\n]
+    ddl_or_query
   end
 
 
   rule ddl_or_query
-    maybe_spaces
+    s
     (query / ddl_statement)
-    maybe_spaces
-    <DDLorQuery>
+    s
+#    <DDLorQuery>
   end
 
   rule ddl_statement
-    maybe_spaces
+    s
      ( create_table /
+      alter_table /
       grant_or_revoke_statement /
       set_statement /
       comment_on_stmt /
       create_sequence /
       alter_sequence )
-      maybe_spaces
-     [';']? maybe_spaces
-    <DDLStatement>
+      s
+     [';']? s
+#    <DDLStatement>
   end
 
   rule query
@@ -45,78 +46,78 @@ grammar PSql
       )?
     (req_space_or_comment* 'union' req_space_or_comment query)?
     (req_space_or_comment / ';')*
-    <Query>
+#    <Query>
   end
 
   rule comment_line
     ('--' [^\n]*)
-    <CommentLine>
+#    <CommentLine>
   end
 
   rule select_statement
     'select' req_space_or_comment (distinct_predicate req_space_or_comment)? select_expressions
-     <SelectStatement>
+#     <SelectStatement>
   end
 
   rule join_statement
     ('left' / 'outer' / 'inner' / 'right' / 'full' / req_space_or_comment)* 'join' req_space_or_comment expression (req_space_or_comment alias)? req_space_or_comment 'on' req_space_or_comment expression
-    <JoinStatement>
+#    <JoinStatement>
   end
 
   rule where_statement
     'where' req_space_or_comment expression
-    <WhereStatement>
+#    <WhereStatement>
   end
 
   rule having_statement
     'having' req_space_or_comment expression
-    <HavingClause>
+#    <HavingClause>
   end
 
   rule window_statement
     'window' req_space_or_comment field_entity req_space_or_comment 'as' req_space_or_comment window
-    <WindowStatement>
+#    <WindowStatement>
   end
 
   rule group_by_statement
-    'group by' req_space_or_comment expression (items_separator expression)*
-     <GroupByClause>
+    'group by' req_space_or_comment expression (list_separator expression)*
+#     <GroupByClause>
   end
 
   rule order_by_statement
-    'order by' req_space_or_comment order_by_expression (items_separator order_by_expression)*
-     <Statement>
+    'order by' req_space_or_comment order_by_expression (list_separator order_by_expression)*
+     # <Statement>
   end
 
   rule limit_statement
     'limit' req_space_or_comment [0-9]+
-    <StatementClause>
+    # <StatementClause>
   end
 
   rule select_expressions
-    select_expression (items_separator select_expression)* <Entity>
+    select_expression (list_separator select_expression)* # <Entity>
   end
 
-  rule items_separator
-    maybe_spaces ',' maybe_spaces
-    <ListSeparator>
+  rule list_separator
+    s ',' s
+#    <ListSeparator>
   end
 
   rule order_by_expression
     expression (req_space_or_comment ('desc' / 'asc'))?
-    <OrderByClause>
+#    <OrderByClause>
   end
 
   rule select_expression
-    expression (req_space_or_comment alias)? <SelectExpression>
+    expression (req_space_or_comment alias)?  #<SelectExpression>
   end
 
   rule alias
     ('as' req_space_or_comment)?
     (
-      '"' ([^\"]+ <Alias>) '"'
+      '"' ([^\"]+ ) '"'
       /
-      !(keyword word_boundary) [\w]+ <Alias>
+      !(keyword word_boundary) [\w]+ #<Alias>
     )
   end
 
@@ -127,71 +128,119 @@ grammar PSql
 
 
   rule create_table
-    'create' sps 'table' sps  opt_schema_table_name columns
-    <CreateTable>
+    'create' S 'table' s opt_schema_table_name columns?
+#    <CreateTable>
   end
 
   rule columns
-    maybe_spaces '(' maybe_spaces column_name sps data_type maybe_spaces  ')'
+    s '(' sn column_specification next_column* s ')'
   end
 
   rule next_column
-    items_separator column_specification
+    list_separator column_specification
   end
 
 
   rule alter_table
-    'alter' sps 'table' sps ( 'if exists' sps)? ( 'only' sps)? table_name
-      ( sps '*'  )
-    <AlterTable>
+    'alter' S 'table' S only_clause? if_exists_clause? opt_schema_table_name
+    sn
+    (S '*')?
+    sn
+     (  add_table_constraint /
+        alter_seq_rename /
+        alter_seq_change_owner /
+        alter_seq_change_schema  )
+#    <AlterTable>
+  end
+
+  rule add_table_constraint
+    'add' S table_constraint (S 'not valid')?
   end
 
 
+  # [ CONSTRAINT constraint_name ]
+  #    { CHECK ( expression ) [ NO INHERIT ] |
+  #      UNIQUE ( column_name [, ... ] ) index_parameters |
+  #      PRIMARY KEY ( column_name [, ... ] ) index_parameters |
+  #      EXCLUDE [ USING index_method ] ( exclude_element WITH operator [, ... ] ) index_parameters [ WHERE ( predicate ) ] |
+  #      FOREIGN KEY ( column_name [, ... ] )
+  #      REFERENCES reftable [ ( refcolumn [, ... ] ) ]
+  #      [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE action ] [ ON UPDATE action ] }
+  #
+  #    [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+  # TODO: this is incomplete.  It does not implement all of the possibilities
+  rule table_constraint
+    'constraint' S [\w]+ S
+      ( foreign_key_clause s /
+        references_clause s )*
+    ( S deferrable_clause)?
+    ( S immediate_clause)?
+  end
+
+
+  # FOREIGN KEY ( column_name [, ... ] )
+  rule foreign_key_clause
+    'foreign' S 'key' s '(' s column_names   s ')' sn
+  end
+
+  rule only_clause
+    'only' S
+  end
+
+  rule if_exists_clause
+    'if exists' S
+  end
+
   rule table_scope
-    ( ( ( 'global' / 'local') sps)*  ('temporary' / 'temp') )* ('unlogged')*
-     <TableScope>
+    ( ( ( 'global' / 'local') S)*  ('temporary' / 'temp') )* ('unlogged')*
+#     <TableScope>
   end
 
   # The optionally schema-qualified name of a table
   rule opt_schema_table_name
-    ( [\w_]+ '.' )? [\w_]+
-    <OptionalSchemaTableName>
+    ( [\w]+ '.' )? [\w]+
+#    <OptionalSchemaTableName>
   end
 
- # ( ( sps constraint_definition )?
-#          ( sps column_collation )?
-#          ( sps deferrable_clause)?
-#          ( sps immediate_clause)?
-#          ( sps column_constraint)* )?
+
   rule column_specification
-    maybe_spaces column_name sps data_type maybe_spaces
-    <ColumnSpecification>
+    sn column_name S data_type
+      ( ( S constraint_definition )?
+        ( S column_collation )?
+        ( S deferrable_clause)?
+        ( S immediate_clause)?
+        ( S column_constraint)* )?
+#    <ColumnSpecification>
   end
 
 
   rule column_name
-    [\w]+
-    <ColumnName>
+    [\w_]+
+#    <ColumnName>
+  end
+
+  rule column_names
+    column_name (list_separator column_name)?
   end
 
   rule column_collation
-    'collate' sps [\w_\.]+
-    <ColumnCollateClause>
+    'collate' S [\w.]+
+#    <ColumnCollateClause>
   end
 
   rule column_constraint
-    ( default_expression maybe_spaces ) /
-    ( primary_key_definition maybe_spaces ) /
-    ( unique_definition maybe_spaces ) /
-    ( null_or_not_clause maybe_spaces ) /
-    ( check_expression maybe_spaces ) /
-    ( references_definition maybe_spaces )
-    <ColumnConstraint>
+    ( default_expression s ) /
+    ( primary_key_definition s ) /
+    ( unique_definition s ) /
+    ( null_or_not_clause s ) /
+    ( check_expression s ) /
+    ( references_clause s )
+#    <ColumnConstraint>
   end
 
   rule deferrable_clause
      'deferrable' / 'not deferrable'
-    <DeferrableClause>
+#    <DeferrableClause>
   end
 
   rule immediate_clause
@@ -200,175 +249,235 @@ grammar PSql
   end
 
   rule constraint_definition
-    'constraint' sps [\w_]+
-    <ConstraintDefinition>
+    'constraint' S [\w]+
+#    <ConstraintDefinition>
   end
 
   rule null_or_not_clause
     'null' / 'not null'
-    <NullOrNotClause>
+#    <NullOrNotClause>
   end
 
   rule default_expression
-    'default' sps expression
-    <DefaultExpression>
+    'default' S expression
+#    <DefaultExpression>
   end
 
   rule primary_key_definition
     'primary key'
       (sps columns_in_parentheses )?
       (sps (using_index_tablespace_parameters)? )?
-      <PrimaryKeyDefinition>
+#      <PrimaryKeyDefinition>
   end
 
   rule unique_definition
     'unique'
       (sps columns_in_parentheses )?
       (sps (using_index_tablespace_parameters)? )?
-      <UniqueDefinition>
+#      <UniqueDefinition>
   end
 
   rule check_expression
     'check'
-      ( sps '(' maybe_spaces expression maybe_spaces ')' )?
-      ( sps 'no inherit' maybe_spaces)?
-      <CheckExpression>
+      ( S '(' s expression s ')' )?
+      ( S 'no inherit' s)?
+#      <CheckExpression>
   end
 
-  rule references_definition
-    'references' sps opt_schema_table_name
-      ( sps '(' maybe_spaces column_name maybe_spaces ')' )?
-      ( sps ('match full' / 'match partial' / 'match simple') )?
-      <ReferencesDefinition>
+  # REFERENCES reftable [ ( refcolumn [, ... ] ) ]
+  rule references_clause
+    'references' S opt_schema_table_name
+      ( s '(' s column_names   s ')' )?
+      ( S ('match full' / 'match partial' / 'match simple') )?
+#      <ReferencesDefinition>
   end
 
   rule columns_in_parentheses
-   ( '(' maybe_spaces column_name (',' sps column_name)* maybe_spaces ')' maybe_spaces)
-   <ColumnsInParentheses>
+   ( '(' s column_name (',' s column_name)* s ')' s)
+#   <ColumnsInParentheses>
   end
 
   # TODO: This is incomplete. It does not include the '[ WITH ( storage_parameter [= value] [, ... ] ) ]' clause
   rule using_index_tablespace_parameters
-    (maybe_spaces 'using index tablespace' sps opt_schema_table_name)
-    <UsingIndexTablespaceParameters>
+    (s 'using index tablespace' S opt_schema_table_name)
+#    <UsingIndexTablespaceParameters>
   end
 
 
- rule grant_or_revoke_statement
-   ('grant' / 'revoke') sps role_names sps 'on schema' sps schema_name sps 'to' sps role_specifications
-     (sps 'with admin option')?
-     (sps 'granted by' sps role_specifications)?
-     <GrantOrRevokeStatement>
+  rule grant_or_revoke_statement
+    revoke_statement /
+    grant_priv_on_schema /
+    grant_roles_on_schema
+    #     <GrantOrRevokeStatement>
  end
 
+ rule grant_roles_on_schema
+  'grant' S role_names S 'on schema' S schema_name S 'to' S role_specifications
+        (sps 'with admin option')?
+       (sps 'granted by' S role_specifications)?
+ end
+
+
+  # GRANT { { CREATE | USAGE } [, ...] | ALL [ PRIVILEGES ] }
+  #        ON SCHEMA schema_name [, ...]
+  #        TO role_specification [, ...] [ WITH GRANT OPTION ]
+  rule grant_priv_on_schema
+    'grant' S ('create' / 'usage' / 'ALL') S  ('privileges' S)?
+      'on' S 'schema' S schema_name S
+      'to' S role_specification ('with grant option')?
+  end
+
+  rule revoke_stmt_start
+    'revoke' S ('grant' S 'option' S 'for' S)?
+  end
+
+  rule optional_cascade_or_restrict
+    ('cascade' / 'restrict')?
+  end
+
+  rule revoke_statement
+    ( revoke_priv_on_schema )
+    optional_cascade_or_restrict
+  end
+
+
+  # REVOKE [ GRANT OPTION FOR ]
+  #        { { CREATE | USAGE } [, ...] | ALL [ PRIVILEGES ] }
+  #        ON SCHEMA schema_name [, ...]
+  #        FROM role_specification [, ...]
+  #        [ CASCADE | RESTRICT ]
+  rule revoke_priv_on_schema
+    'revoke' ( S 'grant' s 'option' s 'for')?
+      S ( 'create' / 'usage' / 'all' ) S  ('privileges' S)?
+      'on' S 'schema' S schema_name S
+      'from' S role_specification
+      (S ('cascade' / 'restrict') )?
+  end
+
+  rule create_usage_privs
+    ('create' / 'usage' / ('create' s ',' s 'usage') / ('usage' list_separator 'create'))
+  end
+
+  rule revoke_roles_on_schema
+     S (role_names) S 'on schema' S schema_name S 'from' S role_specifications
+        (sps 'with admin option')?
+       (sps 'granted by' S role_specifications)?
+  end
+
+
   rule role_names
-    role_name (maybe_spaces ',' maybe_spaces role_name )*
-    <RoleNames>
+    role_name (list_separator role_name )*
+#    <RoleNames>
   end
 
   rule role_specifications
-    role_specification (maybe_spaces ',' maybe_spaces role_specification )*
-    <RoleSpecifications>
+    role_specification (s ',' s role_specification )*
+#    <RoleSpecifications>
   end
 
   rule role_specification
    ('group' req_space_or_comment)? role_name / 'public' / 'current_user' / 'session_user'
-   <RoleSpecifications>
+#   <RoleSpecifications>
   end
 
   # not schema qualified
   rule table_name
-    [\w_]+
-    <TableName>
+    [\w]+
+#    <TableName>
   end
 
   rule schema_name
-    [\w_]+
-    <SchemaName>
+    [\w]+
+#    <SchemaName>
   end
 
   rule role_name
-    [\w_]+
-    <RoleName>
+    [\w]+
+#    <RoleName>
   end
 
   rule set_statement
-    'set' sps (session_local_scope sps)?
+    'set' S (session_local_scope S)?
        configuration_parameter
-       ( ( sps 'to' sps ) / ( maybe_spaces '=' maybe_spaces ) ) primitive_literal
-       <SetConfigParamStatement>
+       ( ( S 'to' S ) / ( s '=' s ) )
+       ( quoted_str / [\w]+ / primitive_literal)
+#       <SetConfigParamStatement>
+  end
+
+  rule quoted_str
+    "'" [\w]* "'"
   end
 
   rule session_local_scope
     'session' / 'local'
-    <SessionLocalScope>
+#    <SessionLocalScope>
   end
 
   rule configuration_parameter
-    [\w_.]+ <ConfigParameter>
+    [\w.]+  #<ConfigParameter>
   end
 
   rule comment_on_stmt
-    ( 'comment' sps 'on' sps
+    ( 'comment' S 'on' S
        ( comment_target_on_object /
         comment_target_aggregate /
         procedural_language_comment_target
       )
-    ) sps 'is' sps "'" comment_text "'"
-    <CommentOnStatement>
+    ) S 'is' S "'" comment_text "'"
+#    <CommentOnStatement>
   end
 
   rule comment_text
     [^']+
-    <CommentText>
+#    <CommentText>
   end
 
   rule comment_target_aggregate
-   'aggregate' sps aggregate_name sps '(' maybe_spaces aggregate_signature maybe_spaces ')'
-    <CommentTargetAggregate>
+   'aggregate' S aggregate_name S '(' s aggregate_signature s ')'
+#    <CommentTargetAggregate>
   end
 
   rule aggregate_name
-    [\w_]+
-    <AggregateName>
+    [\w]+
+#    <AggregateName>
   end
 
   rule argmode
     'inout' / 'in' / 'out' / 'variadic'
-    <AggregateMode>
+#    <AggregateMode>
   end
 
   # TODO: this isn't really accurate.  but it'll cover lots of cases
   rule argtype
     data_type
-    <AggregateType>
+#    <AggregateType>
   end
 
   rule argtypes
-    data_type ( items_separator argtype)*
-    <AggregateTypes>
+    data_type ( list_separator argtype)*
+#    <AggregateTypes>
   end
 
   rule arg_mode_name_type
     (argmode req_space_or_comment)? (aggregate_name req_space_or_comment)? data_type
-    <AggregateModeNameTypesClause>
+#    <AggregateModeNameTypesClause>
   end
 
 
   rule aggregate_signature
-    '*' <AggregateSignature> / arg_mode_name_type (items_separator arg_mode_name_type)?  <AggregateSignature> /
-     ( (argmode sps)? 'order by' sps arg_mode_name_type (items_separator arg_mode_name_type)? ) <AggregateSignature>
+    '*'  / arg_mode_name_type (list_separator arg_mode_name_type)?  /
+     ( (argmode S)? 'order by' S arg_mode_name_type (list_separator arg_mode_name_type)? )
   end
 
 
   rule procedural_language_comment_target
-    [\w_]+
-    <ProceduralLanguageCommentTarget>
+    [\w]+
+#    <ProceduralLanguageCommentTarget>
   end
 
   rule comment_target_on_object
     comment_target_object req_space_or_comment comment_object_name
-    <CommentTargetOnObjectClause>
+#    <CommentTargetOnObjectClause>
   end
 
   rule comment_target_object
@@ -407,12 +516,12 @@ grammar PSql
     'trigger'  /
     'type'/
     'view'
-    <CommentTargetObjectKeyword>
+#    <CommentTargetObjectKeyword>
   end
 
   rule comment_object_name
-    [\w_]+
-    <CommentTargetObjectName>
+    [\w]+
+#    <CommentTargetObjectName>
   end
 
 
@@ -426,7 +535,7 @@ grammar PSql
            seq_cycle_clause /
            if_not_exists_clause /
            seq_owned_by_clause )*
-    <CreateSequence>
+#    <CreateSequence>
   end
 
   # TODO: why doesn't this work when I use it in create_sequence?
@@ -439,7 +548,7 @@ grammar PSql
       seq_cycle_clause /
       if_not_exists_clause /
       seq_owned_by_clause )
-    <SequenceClause>
+#    <SequenceClause>
   end
 
   rule alter_sequence
@@ -448,22 +557,22 @@ grammar PSql
           alter_seq_rename /
           alter_seq_change_owner /
           alter_seq_change_schema
-     <AlterSequence>
+#     <AlterSequence>
   end
 
   rule alter_seq_rename
     req_space_or_comment 'rename to' req_space_or_comment sequence_name
-    <AlterSequenceRenameClause>
+#    <AlterSequenceRenameClause>
   end
 
   rule alter_seq_change_owner
     req_space_or_comment 'owned by' req_space_or_comment sequence_name
-    <AlterSequenceChangeOwnerClause>
+#    <AlterSequenceChangeOwnerClause>
   end
 
   rule alter_seq_change_schema
-    req_space_or_comment 'set schema' req_space_or_comment [\w_]+
-    <AlterSequenceChangeSchemaClause>
+    req_space_or_comment 'set schema' req_space_or_comment [\w]+
+#    <AlterSequenceChangeSchemaClause>
   end
 
   rule alter_sequence_clause
@@ -477,83 +586,83 @@ grammar PSql
     alter_seq_rename /
     alter_seq_change_schema /
     ( req_space_or_comment 'restart' req_space_or_comment ( 'with' req_space_or_comment )? pos_neg_integer+)
-    <AlterSequenceClause>
+#    <AlterSequenceClause>
   end
 
 
   rule sequence_name
     ( schema_name '.' )? (table_name '.' )? column_name
-    <SequenceName>
+#    <SequenceName>
   end
 
   rule if_not_exists_clause
     req_space_or_comment 'if not exists'
-    <IfNotExistsClause>
+#    <IfNotExistsClause>
   end
 
   rule seq_start_with_clause
     req_space_or_comment 'start' req_space_or_comment ( 'with' req_space_or_comment )? pos_neg_integer+
-    <StartsWithClause>
+#    <StartsWithClause>
   end
 
   rule seq_increment_clause
     req_space_or_comment 'increment' req_space_or_comment ( 'by' req_space_or_comment )? pos_neg_integer+
-    <IncrementClause>
+#    <IncrementClause>
   end
 
   rule seq_minval_clause
      (req_space_or_comment 'minvalue' req_space_or_comment pos_neg_integer+ ) / (req_space_or_comment 'no minvalue' )
-     <MinValueClause>
+#     <MinValueClause>
   end
 
   rule seq_maxval_clause
     (req_space_or_comment 'maxvalue' req_space_or_comment pos_neg_integer+ ) / (req_space_or_comment 'no maxvalue' )
-    <MaxValueClause>
+#    <MaxValueClause>
   end
 
   rule seq_cache_clause
     req_space_or_comment 'cache' req_space_or_comment cache_name
-    <CacheClause>
+#    <CacheClause>
   end
 
   rule seq_cycle_clause
     req_space_or_comment ( 'no' req_space_or_comment)?  'cycle'
-    <CycleClause>
+#    <CycleClause>
   end
 
   rule seq_owned_by_clause
     req_space_or_comment  'owned by' req_space_or_comment ( sequence_name / 'none' )
-    <OwnedByClause>
+#    <OwnedByClause>
   end
 
   rule cache_name
-    [\w_]+
-    <CacheName>
+    [\w]+
+#    <CacheName>
   end
 
   rule owner_name
-    [\w_]+
-    <OwnerName>
+    [\w]+
+#    <OwnerName>
   end
 
   # FIXME
    rule seq_time_scope
      'temporary'
-     <SequenceTempTimeScope>
+#     <SequenceTempTimeScope>
   end
 
   rule pos_neg_integer
     ( '+' / '-' )? [0-9]+
-    <PosNegInteger>
+#    <PosNegInteger>
   end
 
  #--------------------------------------------------
   rule expression
     prefix_modifier?
     (
-      '(' query ')' <Query>
+      '(' query ')' #<Query>
       /
-      '(' req_space_or_comment? expression req_space_or_comment? ')' <Entity>
+      '(' req_space_or_comment? expression req_space_or_comment? ')' #<Entity>
       /
       sub_expression)
     (req_space_or_comment? inline_window)?
@@ -628,13 +737,13 @@ grammar PSql
     (req_space_or_comment !('when') expression)?
     (req_space_or_comment 'when' req_space_or_comment expression req_space_or_comment 'then' req_space_or_comment expression)*
     (req_space_or_comment 'else' req_space_or_comment expression)?
-    req_space_or_comment 'end' <Entity>
+    req_space_or_comment 'end' # <Entity>
 
   end
 
   rule function
     [\w]+ req_space_or_comment* '(' (distinct_predicate req_space_or_comment)? (expression / ',' / req_space_or_comment)* ')'
-    <Function>
+#    <Function>
   end
 
   rule string_literal
@@ -644,42 +753,42 @@ grammar PSql
   rule name_expression
     '"' ([^\"]+ <Name>) '"'
     /
-    [\w]+ <Name>
+    [\w]+ #<Name>
   end
 
   rule field_entity
-    '"' [\w\.\* ]+ '"' <QuotedEntity>
+    '"' [\w\.\* ]+ '"' #<QuotedEntity>
     /
-    [\w\.\*]+ <Entity>
+    [\w\.\*]+ #<Entity>
   end
 
   rule field_glob
-    '*' <FieldGlob>
+    '*' #<FieldGlob>
   end
 
   rule field_reference
-    (name_expression "." <TablePart>)? (name_expression / field_glob) <FieldRef>
+    (name_expression "." <TablePart>)? (name_expression / field_glob) #<FieldRef>
   end
 
   rule from_statement
-    'from' req_space_or_comment+ from_expression (req_space_or_comment alias)? <Statement>
+    'from' req_space_or_comment+ from_expression (req_space_or_comment alias)? #<Statement>
   end
 
   rule from_expression
-    [\w]+ <Entity>
+    [\w]+ #<Entity>
     /
-    '(' query ')' <Entity>
+    '(' query ')' #<Entity>
   end
 
 
-  rule maybe_spaces
+  rule s
     [\s]*
   end
 
   # matches at least one space. Handles comments, too.
   rule req_space_or_comment
     ([\s]+ / ('--' (!"\n" .)+ ))+
-    <Space>
+#    <Space>
   end
 
   rule word_boundary
@@ -712,7 +821,7 @@ grammar PSql
       'when' / 'where' / 'window' / 'within' / 'with'
     )
     word_boundary
-    <SQLKeyword>
+#    <SQLKeyword>
   end
 
 
@@ -720,61 +829,61 @@ grammar PSql
   # TODO how to handle 'bit varying' ?
   rule bit_varying_type
     ( 'bit varying'  /  'bit' / 'varbit' ) integer_in_parenthese?
-    <BitVaryingType>
+#    <BitVaryingType>
   end
 
   # character [ (n) ]	char [ (n) ]
   rule character_type
    (  'character' / 'char') integer_in_parenthese?
-   <CharacterType>
+#   <CharacterType>
   end
 
   # character varying [ (n) ]	varchar [ (n) ]
   #  TODO: how to handle 'character varying'  vs. character_type?
   rule character_varying_type
     ( 'character varying' / 'varchar' ) integer_in_parenthese?
-    <VarCharType>
+#    <VarCharType>
   end
 
   rule integer_in_parenthese
-    ( '(' maybe_spaces [0-9]+ maybe_spaces ')' )
-    <IntegerInParentheses>
+    ( '(' s [0-9]+ s ')' )
+#    <IntegerInParentheses>
   end
 
   #  numeric [ (p, s) ]	decimal [ (p, s) ]
   rule numeric_type
-    ('numeric' / 'decimal' ) ( '(' maybe_spaces [0-9]+ (maybe_spaces ',' maybe_spaces [0-9]+)?  maybe_spaces ')' )?
-    <NumericType>
+    ('numeric' / 'decimal' ) ( '(' s [0-9]+ (s ',' s [0-9]+)?  s ')' )?
+#    <NumericType>
   end
 
   #  float [ (p, s) ]	decimal [ (p, s) ]
   rule float_type
-    ('float' ) ( '(' maybe_spaces [0-9]+ (maybe_spaces ',' maybe_spaces [0-9]+)?  maybe_spaces ')' )?
-    <FloatType>
+    ('float' ) ( '(' s [0-9]+ (s ',' s [0-9]+)?  s ')' )?
+#    <FloatType>
   end
 
   # FIXME interval type: fields, precision of the fields, etc.
   # interval [ fields ] [ (p) ]
   rule interval_type
     'interval'
-    <IntervalType>
+#    <IntervalType>
   end
 
   # Usage: colname integer NOT NULL DEFAULT nextval('tablename_colname_seq')
   rule nextval_function_call
-    '(' maybe_spaces "'" name_expression  "'" maybe_spaces ')'
-    <NextValFunctionCall>
+    '(' s "'" name_expression  "'" s ')'
+#    <NextValFunctionCall>
   end
 
 
   rule time_timestamp_type
     ('timestamp' / 'time' ) (integer_in_parenthese)? ((sps 'without time zone' ) / (sps 'with time zone'))?
-    <TimestampType>
+#    <TimestampType>
   end
 
   rule with_or_without_timezone_stmt
     (sps 'without time zone' ) / (sps 'with time zone')
-     <WithOrWithoutTimeZoneClause>
+#     <WithOrWithoutTimeZoneClause>
   end
 
   # Order is important!
@@ -821,12 +930,20 @@ grammar PSql
     'xml'
     )
     word_boundary
-    <DataType>
+#    <DataType>
   end
 
 
   # =============================
   #  Whitespace and comments
+  #
+  #  Here are four whitespace helpers:
+  #    s in the name means “space”,
+  #    n means newline,
+  #   and capitalization means that the capitalized part is REQUIRED
+  #      (contrary to being optional).
+  #
+  #  from https://whitequark.org/blog/2011/09/08/treetop-typical-errors/
   # =============================
 
   # optional space
@@ -834,29 +951,30 @@ grammar PSql
     S?
   end
 
-  # one or more spaces or tabs
+  # REQUIRED one or more spaces or tabs
   rule S
     [ \t]+
   end
 
-  # optional blank line
+  # optional blank line (optionally with leading spaces or tabs)
   rule sn
     sN?
   end
 
   rule comment_line
-    comment_marker (!"\n" .)* "\n"  <CommentLine>
+    comment_marker (!"\n" .)* "\n"  #<CommentLine>
   end
 
   rule comment_marker
     '--'
   end
 
+  # REQUIRED NEWLINE
   # optional spaces followed by a newline
   #   or
-  # comment line preceded by optional spaces
+  # optional comment line followed by a newline
   rule sN
-    ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+  <SN>
+    ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+
   end
 
 end
