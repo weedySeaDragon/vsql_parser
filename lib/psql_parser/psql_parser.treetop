@@ -21,7 +21,8 @@ grammar PSql
       set_statement /
       comment_on_stmt /
       create_sequence /
-      alter_sequence )
+      alter_sequence /
+      create_extension )
       s
      [';']? s
   #    <DDLStatement>
@@ -283,6 +284,29 @@ grammar PSql
       #    <UsingIndexTablespaceParameters>
   end
 
+  # CREATE EXTENSION [ IF NOT EXISTS ] extension_name
+  #        [ WITH ] [ SCHEMA schema_name ]
+  #                 [ VERSION version ]
+  #                 [ FROM old_version ]
+  #                 [ CASCADE ]
+  rule create_extension
+    'create' s 'extension' (S 'if' S 'not' S 'exists')?
+      S extension_name
+      ( (S ('with' S)? 'schema' S schema_name) /
+        (S 'version' S ( quoted_str_with_spaces / [\w]+ ) ) /
+        (S 'from' S [\w]+ ) /
+        (S 'cascade')
+      )*
+  end
+
+
+  rule quoted_str_with_spaces
+    "'" [^']* "'"
+  end
+
+  rule extension_name
+    [\w]+
+  end
 
   rule grant_or_revoke_statement
     revoke_statement /

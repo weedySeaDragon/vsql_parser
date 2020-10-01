@@ -908,6 +908,31 @@ EOF
 
     end
 
+
+    describe 'CREATE EXTENSION' do
+      # CREATE EXTENSION [ IF NOT EXISTS ] extension_name
+      #        [ WITH ] [ SCHEMA schema_name ]
+      #                 [ VERSION version ]
+      #                 [ FROM old_version ]
+      #                 [ CASCADE ]
+      #
+      #
+      # COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+      # CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+      #
+      it 'create extension psql' do
+        assert_parse  "CREATE EXTENSION  plpgsql;"
+        assert_parse  "CREATE EXTENSION IF NOT EXISTS plpgsql;"
+        assert_parse  "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;"
+        assert_parse  "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog VERSION a_version;"
+        assert_parse  "CREATE EXTENSION IF NOT EXISTS plpgsql SCHEMA pg_catalog CASCADE VERSION 'version string';"
+        assert_parse  "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog FROM the_old_version;"
+        assert_parse  "CREATE EXTENSION IF NOT EXISTS plpgsql SCHEMA pg_catalog CASCADE;"
+      end
+
+    end
+
+
     it 'example with interval hour to minute from postgres doc' do
       assert_parse "CREATE TABLE films (" +
                      " code        varchar(5) CONSTRAINT firstkey PRIMARY KEY," +
@@ -982,9 +1007,9 @@ CREATE TABLE public.breed_profiles ( id integer);
 
     it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
 
-    # it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
+    it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
 
   end
 end
