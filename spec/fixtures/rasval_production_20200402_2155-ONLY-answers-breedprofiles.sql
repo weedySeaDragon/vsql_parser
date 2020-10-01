@@ -309,10 +309,11 @@ ALTER SEQUENCE public.dependency_conditions_id_seq OWNED BY public.dependency_co
 -- Name: question_additional_infos; Type: TABLE; Schema: public; Owner: deploy
 --
 
+--     locale character varying DEFAULT 'sv'::character varying NOT NULL,
 CREATE TABLE public.question_additional_infos (
     id integer NOT NULL,
     question_id integer,
-    locale character varying DEFAULT 'sv'::character varying NOT NULL,
+
     not_a_match_explanation character varying,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
@@ -757,10 +758,11 @@ ALTER SEQUENCE public.surveys_id_seq OWNED BY public.surveys.id;
 -- Name: users; Type: TABLE; Schema: public; Owner: deploy
 --
 
+--     email character varying DEFAULT ''::character varying NOT NULL,
+--     encrypted_password character varying DEFAULT ''::character varying NOT NULL,
+
 CREATE TABLE public.users (
     id integer NOT NULL,
-    email character varying DEFAULT ''::character varying NOT NULL,
-    encrypted_password character varying DEFAULT ''::character varying NOT NULL,
     reset_password_token character varying,
     reset_password_sent_at timestamp without time zone,
     remember_created_at timestamp without time zone,
@@ -889,133 +891,133 @@ ALTER SEQUENCE public.validations_id_seq OWNED BY public.validations.id;
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.answers ALTER COLUMN id SET DEFAULT nextval('public.answers_id_seq'::regclass);
+-- ALTER TABLE ONLY public.answers ALTER COLUMN id SET DEFAULT nextval('public.answers_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.breed_profiles ALTER COLUMN id SET DEFAULT nextval('public.breed_profiles_id_seq'::regclass);
+-- ALTER TABLE ONLY public.breed_profiles ALTER COLUMN id SET DEFAULT nextval('public.breed_profiles_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.breed_quiz_scoring_keys ALTER COLUMN id SET DEFAULT nextval('public.breed_quiz_scoring_keys_id_seq'::regclass);
+-- ALTER TABLE ONLY public.breed_quiz_scoring_keys ALTER COLUMN id SET DEFAULT nextval('public.breed_quiz_scoring_keys_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.columns ALTER COLUMN id SET DEFAULT nextval('public.columns_id_seq'::regclass);
+-- ALTER TABLE ONLY public.columns ALTER COLUMN id SET DEFAULT nextval('public.columns_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.dependencies ALTER COLUMN id SET DEFAULT nextval('public.dependencies_id_seq'::regclass);
+-- ALTER TABLE ONLY public.dependencies ALTER COLUMN id SET DEFAULT nextval('public.dependencies_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.dependency_conditions ALTER COLUMN id SET DEFAULT nextval('public.dependency_conditions_id_seq'::regclass);
+-- ALTER TABLE ONLY public.dependency_conditions ALTER COLUMN id SET DEFAULT nextval('public.dependency_conditions_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.question_additional_infos ALTER COLUMN id SET DEFAULT nextval('public.question_additional_infos_id_seq'::regclass);
+-- ALTER TABLE ONLY public.question_additional_infos ALTER COLUMN id SET DEFAULT nextval('public.question_additional_infos_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.question_groups ALTER COLUMN id SET DEFAULT nextval('public.question_groups_id_seq'::regclass);
+-- ALTER TABLE ONLY public.question_groups ALTER COLUMN id SET DEFAULT nextval('public.question_groups_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.questions_id_seq'::regclass);
+-- ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.questions_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.quiz_scores ALTER COLUMN id SET DEFAULT nextval('public.quiz_scores_id_seq'::regclass);
+-- ALTER TABLE ONLY public.quiz_scores ALTER COLUMN id SET DEFAULT nextval('public.quiz_scores_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.response_sets ALTER COLUMN id SET DEFAULT nextval('public.response_sets_id_seq'::regclass);
+-- ALTER TABLE ONLY public.response_sets ALTER COLUMN id SET DEFAULT nextval('public.response_sets_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.responses ALTER COLUMN id SET DEFAULT nextval('public.responses_id_seq'::regclass);
+-- ALTER TABLE ONLY public.responses ALTER COLUMN id SET DEFAULT nextval('public.responses_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.rows ALTER COLUMN id SET DEFAULT nextval('public.rows_id_seq'::regclass);
+-- ALTER TABLE ONLY public.rows ALTER COLUMN id SET DEFAULT nextval('public.rows_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.survey_sections ALTER COLUMN id SET DEFAULT nextval('public.survey_sections_id_seq'::regclass);
+-- ALTER TABLE ONLY public.survey_sections ALTER COLUMN id SET DEFAULT nextval('public.survey_sections_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.survey_translations ALTER COLUMN id SET DEFAULT nextval('public.survey_translations_id_seq'::regclass);
+-- ALTER TABLE ONLY public.survey_translations ALTER COLUMN id SET DEFAULT nextval('public.survey_translations_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.surveys ALTER COLUMN id SET DEFAULT nextval('public.surveys_id_seq'::regclass);
+-- ALTER TABLE ONLY public.surveys ALTER COLUMN id SET DEFAULT nextval('public.surveys_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+-- ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.validation_conditions ALTER COLUMN id SET DEFAULT nextval('public.validation_conditions_id_seq'::regclass);
+-- ALTER TABLE ONLY public.validation_conditions ALTER COLUMN id SET DEFAULT nextval('public.validation_conditions_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: deploy
 --
 
-ALTER TABLE ONLY public.validations ALTER COLUMN id SET DEFAULT nextval('public.validations_id_seq'::regclass);
+-- ALTER TABLE ONLY public.validations ALTER COLUMN id SET DEFAULT nextval('public.validations_id_seq'::regclass);
 
 
 --

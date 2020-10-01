@@ -63,6 +63,13 @@ RSpec.describe PsqlParser::Parser do
 
         describe 'column types with options' do
 
+
+          it 'column default with ::' do
+            pending
+            # locale character varying DEFAULT 'sv'::character varying NOT NULL,
+          end
+
+
           it 'varchar(x)' do
             assert_parse_schema "CREATE TABLE questions (code varchar)"
             assert_parse_schema "CREATE TABLE questions (code varchar(20))"
@@ -163,6 +170,9 @@ RSpec.describe PsqlParser::Parser do
           it 'default values' do
             assert_parse_schema "CREATE TABLE answers (id integer, some_num integer DEFAULT 5)"
             assert_parse_schema "CREATE TABLE answers (id integer, some_text text DEFAULT 'this is quoted', another_col char   )"
+            assert_parse_schema "CREATE TABLE answers (sign_in_count integer DEFAULT 0     NULL)"
+            assert_parse_schema "CREATE TABLE answers (sign_in_count integer DEFAULT 0 NOT NULL)"
+
           end
 
           it 'null / not null' do
@@ -245,10 +255,6 @@ RSpec.describe PsqlParser::Parser do
         pending
       end
 
-      it 'LIKE' do
-        pending
-      end
-
     end
 
     describe 'SET statement' do
@@ -296,6 +302,13 @@ RSpec.describe PsqlParser::Parser do
         pending
       end
 
+      it 'with ::' do
+        pending
+      end
+
+      it 'nextval' do
+        pending
+      end
     end
 
 
@@ -499,7 +512,7 @@ RSpec.describe PsqlParser::Parser do
     end
 
     describe "ALTER TABLE ONLY public.answers ALTER COLUMN id SET DEFAULT nextval('public.answers_id_seq'::regclass);" do
-      pending
+    #   ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.questions_id_seq'::regclass);
     end
 
 
@@ -711,6 +724,18 @@ RSpec.describe PsqlParser::Parser do
 
     end
 
+
+    describe 'COPY data' do
+
+      it 'Copy data' do
+        pending
+      end
+      #   COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;
+      # 1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund
+      # 1098	305	Nej	nej		\N	answer	nej	nej	\N		1	f	\N		\N	2017-04-04 05:20:08.619815	2018-11-16 17:16:26.553073		2971fe9e-5d73-4bd3-943f-82bd243a94a0	default				f	\N	1-haft-hund
+
+    end
+
     it 'example with interval hour to minute from postgres doc' do
       assert_parse_schema "CREATE TABLE films (" +
                      " code        varchar(5) CONSTRAINT firstkey PRIMARY KEY," +
@@ -786,9 +811,9 @@ CREATE TABLE public.breed_profiles ( id integer);
 
     it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
 
-    # it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
+    it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
 
   end
 end

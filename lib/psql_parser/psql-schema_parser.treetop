@@ -53,15 +53,14 @@ grammar PSqlSchema
     sn
      (  add_table_constraint /
         alter_seq_rename /
-        alter_seq_change_owner /
-        alter_seq_change_schema  )
+        alter_table_change_owner  /
+        alter_seq_change_schema  )*
       #    <AlterTable>
   end
 
   rule add_table_constraint
     'add' S table_constraint (S 'not valid')?
   end
-
 
   # [ CONSTRAINT constraint_name ]
   #    { CHECK ( expression ) [ NO INHERIT ] |
@@ -134,12 +133,12 @@ grammar PSqlSchema
   end
 
   rule column_constraint
-    ( default_expression s ) /
-    ( primary_key_definition s ) /
-    ( unique_definition s ) /
-    ( null_or_not_clause s ) /
-    ( check_expression s ) /
-    ( references_clause s )
+    ( default_clause ) /
+    ( primary_key_definition  ) /
+    ( unique_definition ) /
+    ( null_or_not_clause  ) /
+    ( check_expression  ) /
+    ( references_clause  )
       #    <ColumnConstraint>
   end
 
@@ -163,8 +162,9 @@ grammar PSqlSchema
       #    <NullOrNotClause>
   end
 
-  rule default_expression
-    'default' S expression
+  # default  must have a value after it. cannot be an expression
+  rule default_clause
+    'default' S ( 'true' / 'false' / quoted_str_with_spaces / [\w]+ / numeric_literal )
       #    <DefaultExpression>
   end
 
@@ -206,6 +206,10 @@ grammar PSqlSchema
   rule using_index_tablespace_parameters
     (s 'using index tablespace' S opt_schema_table_name)
       #    <UsingIndexTablespaceParameters>
+  end
+
+  rule alter_table_change_owner
+    S 'owner' S 'to' S owner_name
   end
 
   # CREATE EXTENSION [ IF NOT EXISTS ] extension_name
@@ -893,7 +897,7 @@ grammar PSqlSchema
   end
 
   rule comment_line
-    comment_marker (!"\n" .)* "\n"  #<CommentLine>
+    s comment_marker (!"\n" .)* "\n"  #<CommentLine>
   end
 
   rule comment_marker
