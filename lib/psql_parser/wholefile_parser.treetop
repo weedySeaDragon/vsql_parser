@@ -13,36 +13,45 @@ grammar WholeFile
 
 
   # =============================
-  #  Whitespace and comments
-  # =============================
+   #  Whitespace and comments
+   #
+   #  Here are four whitespace helpers:
+   #    s in the name means “space”,
+   #    n means newline,
+   #   and capitalization means that the capitalized part is REQUIRED
+   #      (contrary to being optional).
+   #
+   #  from https://whitequark.org/blog/2011/09/08/treetop-typical-errors/
+   # =============================
 
-  # optional blank line
-  rule sn
-    sN?
-  end
+   # optional space
+   rule s
+     S?
+   end
 
-  # optional spaces followed by a newline
-  #   or
-  # comment line preceded by optional spaces
-  rule sN
-    ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+  <SN>
-  end
+   # REQUIRED one or more spaces or tabs
+   rule S
+     [ \t]+
+   end
 
-  # optional space
-  rule s
-    S?
-  end
+   rule sn
+     sN?
+   end
 
-  # one or more spaces or tabs
-  rule S
-    [ \t]+
-  end
+   rule comment_line
+     comment_marker (!"\n" .)* "\n"  #<CommentLine>
+   end
 
-  rule comment_line
-    comment_marker (!"\n" .)* "\n"  <CommentLine>
-  end
+   rule comment_marker
+     '--'
+   end
 
-  rule comment_marker
-    '--'
-  end
+   # REQUIRED NEWLINE
+   # optional spaces followed by a newline
+   #   or
+   # optional comment line followed by a newline
+   rule sN
+     ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+
+   end
+
 end

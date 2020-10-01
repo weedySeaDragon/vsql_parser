@@ -99,7 +99,7 @@ grammar PSql
   end
 
   rule list_separator
-    s ',' s
+    [\s]* ',' [\s]*
 #    <ListSeparator>
   end
 
@@ -128,12 +128,12 @@ grammar PSql
 
 
   rule create_table
-    'create' S 'table' s opt_schema_table_name columns?
+    'create' S 'table' s opt_schema_table_name (S columns)?
 #    <CreateTable>
   end
 
   rule columns
-    s '(' sn column_specification next_column* s ')'
+    s '(' [\s]* column_specification ( [\s]* ',' [\s]* column_specification  )* [\s]* ')'
   end
 
   rule next_column

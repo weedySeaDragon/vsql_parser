@@ -7,7 +7,7 @@ RSpec.shared_examples 'it can parse sql file' do |sql_fn|
     File.open(File.join(FIXTURES, sql_fn), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
     # puts "sql:"
     # puts sql
-    assert_parse(sql, show_tree: true)
+    assert_parse(sql, show_tree: false)
   end
 end
 
@@ -869,7 +869,6 @@ EOF
         end
       end
 
-
       describe 'roles from role_specifications' do
         # REVOKE [ ADMIN OPTION FOR ]
         # role_name [, ...] FROM role_specification [, ...]
@@ -994,7 +993,7 @@ CREATE TABLE public.breed_profiles ( id integer);
 
     it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
 
     xit 'RASVAL_AND_BPROFILESl' do
       sql = ''
