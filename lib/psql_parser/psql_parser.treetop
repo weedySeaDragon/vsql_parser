@@ -336,8 +336,7 @@ grammar PSql
   end
 
   rule revoke_statement
-    ( revoke_priv_on_schema )
-    optional_cascade_or_restrict
+    ( revoke_priv_on_schema / revoke_roles_on_schema)
   end
 
 
@@ -359,9 +358,11 @@ grammar PSql
   end
 
   rule revoke_roles_on_schema
-     S (role_names) S 'on schema' S schema_name S 'from' S role_specifications
+    'revoke' ( S 'admin' s 'option' s 'for')?
+       S (role_names) S 'on schema' S schema_name S 'from' S role_specifications
         (sps 'with admin option')?
        (sps 'granted by' S role_specifications)?
+       (S ('cascade' / 'restrict') )?
   end
 
 

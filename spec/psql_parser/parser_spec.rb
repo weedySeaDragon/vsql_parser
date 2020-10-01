@@ -867,8 +867,6 @@ EOF
             end
           end
         end
-
-
       end
 
 
@@ -879,32 +877,31 @@ EOF
         # [ CASCADE | RESTRICT ]
         # FIXME: ADMIN OPTION FOR, GRANTED BY
 
-        all_from_role = "REVOKE ALL ON SCHEMA public FROM postgres"
-        all_from_public = "REVOKE ALL ON SCHEMA public FROM PUBLIC"
-        this_from_them = "REVOKE this on schema public from them"
-        this_from_group_them = "REVOKE this on schema public from GROUP them"
-        this_that_from_them = "REVOKE this, that on schema public from them"
-        this_that_from_them_etc = "REVOKE this, that on schema public from them, us, public, current_user"
+        all_from_role = "ALL ON SCHEMA public FROM postgres"
+        all_from_public = "ALL ON SCHEMA public FROM PUBLIC"
+        this_from_them = "this on schema public from them"
+        this_from_group_them = "this on schema public from GROUP them"
+        this_that_from_them = "this, that on schema public from them"
+        this_that_from_them_etc = "this, that on schema public from them, us, public, current_user"
 
         base_revoke_stmts = [all_from_role, all_from_public, this_from_them,
                              this_from_group_them, this_that_from_them,
                              this_that_from_them_etc]
 
-        it 'basic REVOKE statements' do
-          assert_parse all_from_role
-          assert_parse all_from_public
-          assert_parse "REVOKE ALL ON SCHEMA public FROM CURRENT_USER"
-          assert_parse "REVOKE ALL ON SCHEMA public FROM SESSION_USER"
-          assert_parse this_from_them
-          assert_parse this_from_group_them
-          assert_parse this_that_from_them
-          assert_parse this_that_from_them_etc
+        context 'basic REVOKE statements' do
+          base_revoke_stmts.each do |base_stmt|
+            base_revoke_stmt = "REVOKE #{base_stmt}"
+            it base_revoke_stmt do
+              assert_parse base_revoke_stmt
+            end
+          end
         end
+
 
         context 'CASCADE' do
           base_revoke_stmts.each do |stmt|
             it stmt do
-              assert_parse "#{stmt} CASCADE"
+              assert_parse "REVOKE #{stmt} CASCADE"
             end
           end
         end
@@ -912,7 +909,7 @@ EOF
         context 'RESTRICT' do
           base_revoke_stmts.each do |stmt|
             it stmt do
-              assert_parse "#{stmt} RESTRICT"
+              assert_parse "REVOKE #{stmt} RESTRICT"
             end
           end
         end
