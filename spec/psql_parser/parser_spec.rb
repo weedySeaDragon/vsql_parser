@@ -327,10 +327,14 @@ EOF
           end
 
           it 'interval' do
-            assert_parse 'CREATE TABLE films (len interval)'
+            assert_parse 'CREATE TABLE films (someint interval)'
+            assert_parse "CREATE TABLE films (len interval hour to minute)"
+            assert_parse "CREATE TABLE films (len interval hour)"
+            assert_parse "CREATE TABLE films (len interval(4))"
+            assert_parse "CREATE TABLE films (len interval(6) day to second)"
           end
 
-          it 'time, timez' do
+          it 'time' do
             assert_parse "CREATE TABLE questions (t time)"
             assert_parse "CREATE TABLE questions (t time(10))"
             assert_parse "CREATE TABLE questions (t time WITHOUT TIME ZONE)"
@@ -358,7 +362,7 @@ EOF
           end
 
           it 'timestampz' do
-            assert_parse "CREATE TABLE questions (t timestampzs)"
+            assert_parse "CREATE TABLE questions (t timestampz)"
             assert_parse "CREATE TABLE questions (t timestampz(10))"
             assert_parse "CREATE TABLE questions (t timestampz WITHOUt time ZONE)"
             assert_parse "CREATE TABLE questions (t timestampz WITH TIME ZONE)"

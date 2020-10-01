@@ -133,11 +133,11 @@ grammar PSql
   end
 
   rule columns
-    s '(' [\s]* column_specification ( [\s]* ',' [\s]* column_specification  )* [\s]* ')'
+    s '(' [\s]* column_specification next_column* [\s]* ')'
   end
 
   rule next_column
-    list_separator column_specification
+    ( [\s]* ',' [\s]* column_specification  )
   end
 
 
@@ -863,10 +863,23 @@ grammar PSql
 #    <FloatType>
   end
 
-  # FIXME interval type: fields, precision of the fields, etc.
   # interval [ fields ] [ (p) ]
   rule interval_type
-    'interval'
+    'interval' ( '(' s [0-6]+ s ')' )?
+      ( S (
+        'year to month'/
+        'year' /
+        'month' /
+        'day to hour' /
+        'day to minute' /
+        'day to second' /
+        'day' /
+        'hour to minute' /
+        'hour to second' /
+        'hour' /
+        'minute to second' /
+        'minute' /
+        'second' ) )?
 #    <IntervalType>
   end
 
@@ -898,17 +911,15 @@ grammar PSql
     'bytea' /
      character_varying_type /
      character_type /
-
     'cidr' /
     'circle' /
     'date' /
     'double precision' /	'float8' /
     float_type /
     'inet' /
-    'integer' /	'int' / 'int4' /
     interval_type /
+    'integer' /	'int' / 'int4' /
     'json' /
-    'jsonb' /
     'line' /
     'lseg' /
     'macaddr' /
