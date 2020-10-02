@@ -2,17 +2,8 @@ grammar PSqlSchema
 
   rule wholefile
     sn
-    (ddl_or_query / sN)*
+    (s ddl_statement s / sN)*
     sn
-  end
-
-  # ddl_statement must come before query so that any ddl statements that start
-  #  with query keywords are properly parsed (e.g. 'SELECT ...set_config()'
-  rule ddl_or_query
-    s
-    (ddl_statement )
-    s
-    #    <DDLorQuery>
   end
 
   rule ddl_statement
@@ -25,7 +16,8 @@ grammar PSqlSchema
       create_sequence /
       alter_sequence /
       create_extension /
-      set_config )
+      select_set /
+      copy_data )
       s
      [';']? s
   #    <DDLStatement>
@@ -44,7 +36,6 @@ grammar PSqlSchema
   rule next_column
     ( [\s]* ',' [\s]* column_specification  )
   end
-
 
   rule alter_table
     'alter' S 'table' S only_clause? if_exists_clause? opt_schema_table_name
@@ -84,7 +75,7 @@ grammar PSqlSchema
 
   # FOREIGN KEY ( column_name [, ... ] )
   rule foreign_key_clause
-    'foreign' S 'key' s '(' s column_names   s ')' sn
+    'foreign' S 'key' s '(' s column_names*   s ')' sn
   end
 
   rule only_clause
@@ -124,7 +115,11 @@ grammar PSqlSchema
   end
 
   rule column_names
-    column_name (list_separator column_name)?
+    [\s]* column_name  next_column_name* [\s]*
+  end
+
+  rule next_column_name
+     ( [\s]* ',' [\s]* column_name  )
   end
 
   rule column_collation
@@ -227,9 +222,17 @@ grammar PSqlSchema
       )*
   end
 
-  rule set_config
-    'select' S schema_name '.set_config(' [^)]+ ')'
+  # ----------------------------
+  #  SELECT set ...
+
+  rule select_set
+    'select' S schema_name ( '.set_config' / '.setval') '(' [^)]+ ')'
   end
+
+
+
+
+  # ----------------------------
 
   rule quoted_str_with_spaces
     "'" [^']* "'"
@@ -557,6 +560,34 @@ grammar PSqlSchema
     #    <OwnedByClause>
   end
 
+  # -------------------------
+  #  COPY statement and data
+
+  rule copy_data
+    # header line
+    'copy' S opt_schema_table_name S '(' s column_names* s ')' S 'from' S 'stdin;'
+        copy_data_line*
+      copy_data_terminator
+    <CopyData>
+  end
+
+  rule copy_data_terminator
+    '\.'
+  end
+
+  rule copy_data_line
+     ( !copy_data_terminator  (  ![\n] . )*  ) [\n]  <CopyDataLine>
+  end
+
+
+  rule data_line_std_terminator
+    S+
+  end
+
+
+  # -------------------------
+  #  Names and identifiers
+
   rule cache_name
     [\w]+
     #    <CacheName>
@@ -577,7 +608,10 @@ grammar PSqlSchema
     #    <PosNegInteger>
   end
 
- #--------------------------------------------------
+
+  # -------------------------
+  #  Expression and subexpressions
+
   rule expression
     prefix_modifier?
     (
@@ -598,6 +632,10 @@ grammar PSqlSchema
     '-' req_space_or_comment?
   end
 
+  rule distinct_all_clause
+    'distinct' / 'all'
+  end
+
   rule inline_window
     'over' req_space_or_comment (window / field_entity)
   end
@@ -613,9 +651,6 @@ grammar PSqlSchema
     '(' query ')'
   end
 
-  rule distinct_predicate
-    'distinct' / 'all'
-  end
 
   rule set_literal
     '(' req_space_or_comment? primitive_literal (req_space_or_comment? ',' req_space_or_comment? primitive_literal)* req_space_or_comment? ')'
@@ -663,7 +698,7 @@ grammar PSqlSchema
   end
 
   rule function
-    [\w]+ req_space_or_comment* '(' (distinct_predicate req_space_or_comment)? (expression / ',' / req_space_or_comment)* ')'
+    [\w]+ req_space_or_comment* '(' (distinct_all_clause req_space_or_comment)? (expression / ',' / req_space_or_comment)* ')'
       #    <Function>
   end
 

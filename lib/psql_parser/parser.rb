@@ -1,6 +1,6 @@
 require 'treetop'
 require_relative './psql_node_extensions'
-
+require_relative './psql_schema_node_extensions'
 
 class PsqlParser::Parser
 

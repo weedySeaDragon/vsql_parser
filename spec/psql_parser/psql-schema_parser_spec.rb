@@ -7,15 +7,15 @@ RSpec.shared_examples 'it can parse sql file' do |sql_fn|
     File.open(File.join(FIXTURES, sql_fn), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
     # puts "sql:"
     # puts sql
-    assert_parse_schema(sql, show_tree: false)
+    assert_parse_schema(sql, show_tree: false, cleanup_tree: false, make_dot_file: true)
   end
 end
 
 
 RSpec.describe PsqlParser::Parser do
 
-  def assert_parse_schema(sql, show_tree: false)
-    expect { described_class.parse_schema sql, show_tree: show_tree }.not_to raise_error
+  def assert_parse_schema(sql, show_tree: false, cleanup_tree: false, make_dot_file: false)
+    expect { described_class.parse_schema(sql, show_tree: show_tree, cleanup_tree: cleanup_tree, dot_file: make_dot_file) }.not_to raise_error
   end
 
 
@@ -724,17 +724,51 @@ RSpec.describe PsqlParser::Parser do
 
     end
 
+    describe 'SELECT ... set_val' do
+      pending
+    #   SELECT pg_catalog.setval('public.answers_id_seq', 1133, true);
+    end
 
     describe 'COPY data' do
 
-      it 'Copy data' do
-        pending
+      it 'No data (just header and terminal line)' do
+        assert_parse_schema "COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;\n" +
+                              "\\."
       end
-      #   COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;
-      # 1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund
-      # 1098	305	Nej	nej		\N	answer	nej	nej	\N		1	f	\N		\N	2017-04-04 05:20:08.619815	2018-11-16 17:16:26.553073		2971fe9e-5d73-4bd3-943f-82bd243a94a0	default				f	\N	1-haft-hund
 
+
+      it 'one line of data' do
+        assert_parse_schema "COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;\n" +
+                              "1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund\n" +
+                              "\\."
+      end
+
+      it '3 lines of data' do
+        assert_parse_schema "COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;\n" +
+          "1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund\n" +
+          "1098	305	Nej	nej		\N	answer	nej	nej	\N		1	f	\N		\N	2017-04-04 05:20:08.619815	2018-11-16 17:16:26.553073		2971fe9e-5d73-4bd3-943f-82bd243a94a0	default				f	\N	1-haft-hund\n" +
+          "1104	306	Över 65 år	Över 65 år	För maximal trivsel med hundinnehavet på äldre dar är en lättskött hund att föredra - både med tanke på hundens motionsbehov och pälsvård. Tänk på att ni kan försäkra er mot oron - Vem skall ta hand om hunden om ni till exempel vistas en tid på sjukhus? Tala med ert försäkringsbolag.	\N	answer	65_over	ver_65_r	\N		4	f	\N		\N	2017-04-04 04:04:18.471384	2018-11-16 17:16:26.553073		5aeb0b78-d98f-4b55-89a7-4b35dfd21934	default				f	\N	2-hundägare-ålder\n" +
+          "\\."
+      end
+
+      it '3 lines of data, followed by other valid (not copy data)  lines' do
+        assert_parse_schema "COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;\n" +
+                              "1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund\n" +
+                              "1098	305	Nej	nej		\N	answer	nej	nej	\N		1	f	\N		\N	2017-04-04 05:20:08.619815	2018-11-16 17:16:26.553073		2971fe9e-5d73-4bd3-943f-82bd243a94a0	default				f	\N	1-haft-hund\n" +
+                              "1104	306	Över 65 år	Över 65 år	För maximal trivsel med hundinnehavet på äldre dar är en lättskött hund att föredra - både med tanke på hundens motionsbehov och pälsvård. Tänk på att ni kan försäkra er mot oron - Vem skall ta hand om hunden om ni till exempel vistas en tid på sjukhus? Tala med ert försäkringsbolag.	\N	answer	65_over	ver_65_r	\N		4	f	\N		\N	2017-04-04 04:04:18.471384	2018-11-16 17:16:26.553073		5aeb0b78-d98f-4b55-89a7-4b35dfd21934	default				f	\N	2-hundägare-ålder\n" +
+                              "\\.\n" +
+                              "\n" +
+                              "CREATE TABLE films (" +
+                              " code        varchar(5) CONSTRAINT firstkey PRIMARY KEY," +
+                              "title       varchar(40) NOT NULL," +
+                              "did         integer NOT NULL," +
+                              "date_prod   date," +
+                              "kind        varchar(10)," +
+                              "fine_measurement float );\n" +
+                              "\n"
+      end
     end
+
 
     it 'example with interval hour to minute from postgres doc' do
       assert_parse_schema "CREATE TABLE films (" +
@@ -796,7 +830,7 @@ CREATE TABLE public.breed_profiles ( id integer);
 
 
 "
-      assert_parse_schema sql, show_tree: true
+      assert_parse_schema sql
     end
   end
 
@@ -809,11 +843,10 @@ CREATE TABLE public.breed_profiles ( id integer);
     RASVAL_AND_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
     ENTIRE_RASVAL_SCHEMA = 'rasval_production_20200402_2155.sql'
 
-    it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
+    # it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
 
     it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
-
   end
 end
