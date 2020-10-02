@@ -8,6 +8,7 @@ class PsqlParser::Parser
   PSQL_GRAMMER_FN = 'psql_parser.treetop'
   FILE_GRAMMER_FN = 'psql-schema_parser.treetop'
 
+  MAX_DOT_LEVEL = 4
 
   # This call to Treetop will create a Parser class based on the root name in the grammar file.
   grammars = [PSQL_GRAMMER_FN, FILE_GRAMMER_FN].freeze
@@ -26,18 +27,27 @@ class PsqlParser::Parser
   end
 
 
-  def self.parse_schema(sql, show_tree: true, cleanup_tree: false)
-    parse(sql, grammarparser: schema_parser, show_tree: show_tree, cleanup_tree: cleanup_tree)
+  def self.parse_schema(sql, show_tree: true,
+                        cleanup_tree: false,
+                        dot_file: false)
+    parse(sql, grammarparser: schema_parser,
+          show_tree: show_tree,
+          cleanup_tree: cleanup_tree,
+          dot_file: dot_file)
   end
 
 
   def self.parse(sql, grammarparser: parser,
-                 show_tree: false, cleanup_tree: false)
+                 show_tree: false,
+                 cleanup_tree: false,
+                 dot_file: false)
+
     d_sql = sql.downcase # REQUIRED!
 
     tree = grammarparser.parse(d_sql).tap do
       d_sql.replace(sql)
     end
+
 
     # If the AST is nil then there was an error during parsing
     # we need to report a simple error message to help the user
@@ -48,15 +58,21 @@ class PsqlParser::Parser
       raise Exception, grammarparser.failure_reason
     end
 
-    if show_tree
-      if cleanup_tree
-        puts reject_tree_terminals(tree).inspect
+    result_tree = tree
+    result_tree = reject_tree_terminals(tree) if cleanup_tree
+
+    puts result_tree.inspect if show_tree
+
+    if dot_file
+      dot_fname = File.join(__dir__, "parser-#{Time.now.to_i}")
+      if result_tree.is_a? Array
+        result_tree.each_with_index { |t, i| write_dot(t, "#{dot_fname}-#{i}") }
       else
-        puts tree.inspect
+        write_dot(result_tree, "#{dot_fname}-0")
       end
     end
 
-    tree
+    result_tree
   end
 
 
@@ -87,17 +103,55 @@ class PsqlParser::Parser
     inspect_matcher = /SyntaxNode(?<inner_node>\+\w+)?[^"]+"(?<inner_methods>[^"]*)"/
     inner_node_and_methods = inspect_matcher.match(node.inspect)
     if inner_node_and_methods
-      inner_node_and_methods[:inner_methods].size < 2 || inner_node_and_methods[:inner_methods] == '\t'
+      inner_node_and_methods[:inner_methods].size < 2 || inner_node_and_methods[:inner_methods] == '\t' || inner_node_and_methods[:inner_methods] == '\n'
     else
       true
     end
   end
+
 
   def self.reject_tree_terminals(root_node)
     return if (root_node.elements.nil?)
 
     root_node.elements.delete_if &REJECT_TEST
     root_node.elements.each { |node| self.reject_tree_terminals(node) }
+  end
+
+
+  MAX_NODETEXT_LEN = 1000
+
+  def self.node_as_dot(node, io)
+    node_text = node.text_value.size > MAX_NODETEXT_LEN ? "#{node.text_value[0..MAX_NODETEXT_LEN]}..." : node.text_value
+    io.puts "node#{node.dot_id} [label=\"'#{node_text}'\"];"
+  end
+
+
+  def self.node_to_node_dot(first_node, second_node, io)
+    io.puts "node#{first_node.dot_id} -> node#{second_node.dot_id};"
+  end
+
+
+  def self.output_dot_to_max_levels(tree, io, level = 1)
+    return if level > MAX_DOT_LEVEL
+
+    node_as_dot(tree, io)
+
+    if tree.nonterminal? then
+      tree.elements.each do |child_element|
+        node_to_node_dot(tree, child_element, io) unless level == MAX_DOT_LEVEL
+        output_dot_to_max_levels(child_element, io, level + 1)
+      end
+    end
+  end
+
+
+  def self.write_dot(tree, fname)
+    File.open(fname + ".dot", "w") do
+    |file|
+      file.puts "digraph G {"
+      output_dot_to_max_levels(tree, file)
+      file.puts "}"
+    end
   end
 
 end
