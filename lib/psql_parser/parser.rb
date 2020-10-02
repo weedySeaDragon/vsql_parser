@@ -26,13 +26,13 @@ class PsqlParser::Parser
   end
 
 
-  def self.parse_schema(sql, show_tree: true)
-    parse(sql, grammarparser: schema_parser, show_tree: show_tree)
+  def self.parse_schema(sql, show_tree: true, cleanup_tree: false)
+    parse(sql, grammarparser: schema_parser, show_tree: show_tree, cleanup_tree: cleanup_tree)
   end
 
 
   def self.parse(sql, grammarparser: parser,
-                 show_tree: false, remove_tree_terminals: true)
+                 show_tree: false, cleanup_tree: false)
     d_sql = sql.downcase # REQUIRED!
 
     tree = grammarparser.parse(d_sql).tap do
@@ -49,7 +49,7 @@ class PsqlParser::Parser
     end
 
     if show_tree
-      if remove_tree_terminals
+      if cleanup_tree
         puts reject_tree_terminals(tree).inspect
       else
         puts tree.inspect
@@ -69,14 +69,34 @@ class PsqlParser::Parser
   end
 
 
-  NOISY_NAMES = [].freeze
+  # NOISY_NAMES = [].freeze
   # NOISY_NAMES = ['Treetop::Runtime::SyntaxNode', 'PSql::Space'].freeze
 
+  # REJECT_TEST = lambda do |node|
+  #   em = node.extension_modules
+  #   interesting_methods = node.methods - [em.last ? em.last.methods : nil] - node.class.instance_methods
+  #   interesting_methods.empty?
+  # end
+
+  # reject a node if
+  #   there are no 'inner methods' (which are names of rules in the grammar file)
+  #    == the length of the String for the node is 1 or 0 (empty)
+  #      -- which are usually literals
+  #        (e.g. letters, numbers, punctuation, space, or empty)
+  REJECT_TEST = lambda do |node|
+    inspect_matcher = /SyntaxNode(?<inner_node>\+\w+)?[^"]+"(?<inner_methods>[^"]*)"/
+    inner_node_and_methods = inspect_matcher.match(node.inspect)
+    if inner_node_and_methods
+      inner_node_and_methods[:inner_methods].size < 2 || inner_node_and_methods[:inner_methods] == '\t'
+    else
+      true
+    end
+  end
 
   def self.reject_tree_terminals(root_node)
     return if (root_node.elements.nil?)
 
-    root_node.elements.delete_if { |node| NOISY_NAMES.include? node.class.name }
+    root_node.elements.delete_if &REJECT_TEST
     root_node.elements.each { |node| self.reject_tree_terminals(node) }
   end
 
