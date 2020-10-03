@@ -12,18 +12,11 @@ module PSqlSchema
   end
 
 
-  #
-  # class DDLorQuery < ::Treetop::Runtime::SyntaxNode
-  # end
-  #
+  # Most of the following are for the PSqlParser:
+  #  --------------------------------------------
   # class CommentLine < ::Treetop::Runtime::SyntaxNode
   # end
   #
-  # class DDLStatement < ::Treetop::Runtime::SyntaxNode
-  #   def expressions
-  #     Helpers.find_elements(self, SelectExpression)
-  #   end
-  # end
   #
   # class Operator < ::Treetop::Runtime::SyntaxNode
   # end
@@ -129,35 +122,37 @@ module PSqlSchema
   #   # end
   # end
   #
-  # class DDLStatement < ::Treetop::Runtime::SyntaxNode
-  # end
-  #
-  # class CreateTable < DDLStatement
-  # end
-  #
-  # class AlterTable < DDLStatement
-  # end
-  #
-  # class GrantOrRevokeStatement < DDLStatement
-  # end
-  #
-  # class SetConfigParamStatement < DDLStatement
-  # end
-  #
-  # class CommentOnStatement < DDLStatement
-  # end
-  #
-  # class CreateSequence < DDLStatement
-  # end
-  #
-  # class AlterSequence < DDLStatement
-  # end
-  #
-  #
-  # class GrantOrRevokeStatement < DDLStatement
-  # end
-  #
-  #
+  #  END Most of the following are for the PSqlParser:
+  #  --------------------------------------------
+
+  class DDLStatement < ::Treetop::Runtime::SyntaxNode
+  end
+
+  class CreateTable < DDLStatement
+  end
+
+  class AlterTable < DDLStatement
+  end
+
+  class GrantOrRevokeStatement < DDLStatement
+  end
+
+  class SetConfigParamStatement < DDLStatement
+  end
+
+  class CommentOnStatement < DDLStatement
+  end
+
+  class CreateSequence < DDLStatement
+  end
+
+  class AlterSequence < DDLStatement
+  end
+
+  class GrantOrRevokeStatement < DDLStatement
+  end
+
+
   # class TableScope < ::Treetop::Runtime::SyntaxNode
   # end
   #
@@ -228,14 +223,14 @@ module PSqlSchema
   # class RoleSpecification < ::Treetop::Runtime::SyntaxNode
   # end
   #
-  # class ItemName < ::Treetop::Runtime::SyntaxNode
-  # end
-  #
-  # class TableName < ItemName
-  # end
-  #
-  # class SchemaName < ItemName
-  # end
+  class ItemName < ::Treetop::Runtime::SyntaxNode
+  end
+
+  class TableName < ItemName
+  end
+
+  class SchemaName < ItemName
+  end
   #
   # class RoleName < ItemName
   # end
