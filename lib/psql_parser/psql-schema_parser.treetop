@@ -1,5 +1,10 @@
 grammar PSqlSchema
 
+  #========================#
+  #   Postgres SQL 9.6     #
+  #========================#
+
+
   rule wholefile
     sn
     (s ddl_statement s / sN)*
@@ -23,10 +28,17 @@ grammar PSqlSchema
   #    <DDLStatement>
   end
 
-
+  # ---------------------------
+  #  Create Table
   rule create_table
-    'create' S 'table' s opt_schema_table_name (S columns)?
+    'create' (table_type)* S 'table' (S 'if' S 'not' S 'exists')? S opt_schema_table_name (S columns)?
     #    <CreateTable>
+  end
+
+  rule table_type
+    (S ( 'global' / 'local') ) /
+    (S ( 'temporary' / 'temp') ) /
+    (S 'unlogged')
   end
 
   rule columns
@@ -37,20 +49,74 @@ grammar PSqlSchema
     ( [\s]* ',' [\s]* column_specification  )
   end
 
+
+  # some variations can have 'ONLY' as a clause, some cannot
   rule alter_table
-    'alter' S 'table' S only_clause? if_exists_clause? opt_schema_table_name
-    sn
-    (S '*')?
-    sn
-     (  add_table_constraint /
-        alter_seq_rename /
-        alter_table_change_owner  /
-        alter_seq_change_schema  )*
-      #    <AlterTable>
+    'alter' S 'table' (S 'if' S 'exists')?
+    (
+      ( S 'only' S opt_schema_table_name
+        sn (S '*')? sn
+        ( alter_table_actions /
+          alter_seq_rename
+        )
+      )
+    /
+      ( S opt_schema_table_name
+        sn  (S '*')?  sn
+         ( alter_table_rename /
+           alter_table_set_schema /
+           alter_seq_change_schema /
+           alter_table_actions /
+           alter_seq_rename
+         )
+      )
+    )
+      <AlterTable>
   end
 
+  rule alter_table_rename
+    S 'rename' S 'to' S table_name
+  end
+
+  rule alter_table_set_schema
+    S 'set' S 'schema' S schema_name
+  end
+
+  rule alter_table_actions
+    spc_andor_N
+       (  add_table_constraint /
+          alter_table_alter_column /
+         alter_table_change_owner )*
+  end
+
+  # ALTER [ COLUMN ] column_name [ SET DATA ] TYPE data_type  [ COLLATE collation ]   [ USING expression ]
+  #  ALTER [ COLUMN ] column_name SET DEFAULT expression
+  #  ALTER [ COLUMN ] column_name DROP DEFAULT
+  #  ALTER [ COLUMN ] column_name { SET | DROP } NOT NULL
+  #  ALTER [ COLUMN ] column_name SET STATISTICS integer
+  #  ALTER [ COLUMN ] column_name SET ( attribute_option = value [, ... ] )
+  #  ALTER [ COLUMN ] column_name RESET ( attribute_option [, ... ] )
+  #  ALTER [ COLUMN ] column_name
+  #     SET STORAGE { PLAIN | EXTERNAL | EXTENDED | MAIN }
+  rule alter_table_alter_column
+    'alter' S ('column' S)? column_name
+    ( alter_table_alter_col_type /
+      alter_table_alter_col_default )
+  end
+
+  # TODO:  USING expression
+  rule alter_table_alter_col_type
+    S ('set' S 'data' S)? 'type' S data_type (S column_collation)?
+  end
+
+  rule alter_table_alter_col_default
+    S 'set' S 'default' S default_value
+  end
+
+
+  # FIXME this does not implement the NOT VALID optional clause for foreign key constrains
   rule add_table_constraint
-    'add' S table_constraint (S 'not valid')?
+    'add' S table_constraint
   end
 
   # [ CONSTRAINT constraint_name ]
@@ -58,16 +124,13 @@ grammar PSqlSchema
   #      UNIQUE ( column_name [, ... ] ) index_parameters |
   #      PRIMARY KEY ( column_name [, ... ] ) index_parameters |
   #      EXCLUDE [ USING index_method ] ( exclude_element WITH operator [, ... ] ) index_parameters [ WHERE ( predicate ) ] |
-  #      FOREIGN KEY ( column_name [, ... ] )
-  #      REFERENCES reftable [ ( refcolumn [, ... ] ) ]
-  #      [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE action ] [ ON UPDATE action ] }
+  #      FOREIGN KEY ( column_name [, ... ] ) REFERENCES reftable [ ( refcolumn [, ... ] ) ]  [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE action ] [ ON UPDATE action ] }
   #
   #    [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
   # TODO: this is incomplete.  It does not implement all of the possibilities
   rule table_constraint
-    'constraint' S [\w]+ S
-      ( foreign_key_clause s /
-        references_clause s )*
+    'constraint' S [\w]+
+      ( S foreign_key_clause (S references_clause)? s)*
     ( S deferrable_clause)?
     ( S immediate_clause)?
   end
@@ -78,12 +141,8 @@ grammar PSqlSchema
     'foreign' S 'key' s '(' s column_names*   s ')' sn
   end
 
-  rule only_clause
-    'only' S
-  end
-
   rule if_exists_clause
-    'if exists' S
+    S 'if exists'  <IfExistsClause>
   end
 
   rule table_scope
@@ -93,25 +152,24 @@ grammar PSqlSchema
 
   # The optionally schema-qualified name of a table
   rule opt_schema_table_name
-    ( [\w]+ '.' )? [\w]+
+   ( ( [\w]+ '.' )? [\w]+ )
       #    <OptionalSchemaTableName>
   end
 
 
+  # ----------------------------
+  #  Column Specification
+
   rule column_specification
-    sn column_name S data_type
-      ( ( S constraint_definition )?
-        ( S column_collation )?
-        ( S deferrable_clause)?
-        ( S immediate_clause)?
-        ( S column_constraint)* )?
-      #    <ColumnSpecification>
+    sn column_name (S / '::') data_type
+      ( col_constraint_options )?
+    # <ColumnSpecification>
   end
 
 
+  # FIXME:  cannot be a keyword or reserved phrase
   rule column_name
-    [\w_]+
-      #    <ColumnName>
+     [\w_]+        #  <ColumnName>
   end
 
   rule column_names
@@ -127,6 +185,14 @@ grammar PSqlSchema
       #    <ColumnCollateClause>
   end
 
+  rule col_constraint_options
+    ( S constraint_definition )?
+    ( S column_collation )?
+    ( S deferrable_clause)?
+    ( S immediate_clause)?
+    ( S column_constraint)*
+  end
+
   rule column_constraint
     ( default_clause ) /
     ( primary_key_definition  ) /
@@ -134,8 +200,11 @@ grammar PSqlSchema
     ( null_or_not_clause  ) /
     ( check_expression  ) /
     ( references_clause  )
-      #    <ColumnConstraint>
+    #  <ColumnConstraint>
   end
+
+  # ----------------------------
+
 
   rule deferrable_clause
      'deferrable' / 'not deferrable'
@@ -159,8 +228,26 @@ grammar PSqlSchema
 
   # default  must have a value after it. cannot be an expression
   rule default_clause
-    'default' S ( 'true' / 'false' / quoted_str_with_spaces / [\w]+ / numeric_literal )
-      #    <DefaultExpression>
+    'default' S  default_value
+      #    <DefaultClause>
+  end
+
+  rule default_value
+    ( simple_function / 'true' / 'false' / quoted_str_with_spaces / [\w]+ / numeric_literal  )
+    (colons_cast_as)?
+  end
+
+  rule simple_function
+    ( [\w]+ '(' s simple_funct_arg s ')' )
+  end
+
+  rule simple_funct_arg
+    default_value
+  end
+
+  rule colons_cast_as
+    '::' (data_type / [\w]+)
+         ( col_constraint_options )?
   end
 
   rule primary_key_definition
@@ -177,6 +264,14 @@ grammar PSqlSchema
       #      <UniqueDefinition>
   end
 
+  rule columns_in_parentheses
+   ( '(' s column_name (',' s column_name)* s ')' s)
+      #   <ColumnsInParentheses>
+  end
+
+ # -----------------------
+
+
   rule check_expression
     'check'
       ( S '(' s expression s ')' )?
@@ -187,15 +282,11 @@ grammar PSqlSchema
   # REFERENCES reftable [ ( refcolumn [, ... ] ) ]
   rule references_clause
     'references' S opt_schema_table_name
-      ( s '(' s column_names   s ')' )?
+      ( s '(' s  column_names  s ')' )?
       ( S ('match full' / 'match partial' / 'match simple') )?
       #      <ReferencesDefinition>
   end
 
-  rule columns_in_parentheses
-   ( '(' s column_name (',' s column_name)* s ')' s)
-      #   <ColumnsInParentheses>
-  end
 
   # TODO: This is incomplete. It does not include the '[ WITH ( storage_parameter [= value] [, ... ] ) ]' clause
   rule using_index_tablespace_parameters
@@ -204,7 +295,7 @@ grammar PSqlSchema
   end
 
   rule alter_table_change_owner
-    S 'owner' S 'to' S owner_name
+    'owner' S 'to' S owner_name
   end
 
   # CREATE EXTENSION [ IF NOT EXISTS ] extension_name
@@ -320,14 +411,15 @@ grammar PSqlSchema
   end
 
   # not schema qualified
+  # FIXME:  cannot be a keyword or reserved phrase
   rule table_name
-    [\w]+
-      #    <TableName>
+    ( [\w]+)      <TableName>
   end
 
+
+  # FIXME:  cannot be a keyword or reserved phrase
   rule schema_name
-    [\w]+
-      #    <SchemaName>
+    [\w]+      <SchemaName>
   end
 
   rule role_name
@@ -487,7 +579,7 @@ grammar PSqlSchema
   end
 
   rule alter_seq_rename
-    req_space_or_comment 'rename to' req_space_or_comment sequence_name
+    req_space_or_comment 'rename' S 'to' req_space_or_comment sequence_name
     #    <AlterSequenceRenameClause>
   end
 
@@ -497,7 +589,7 @@ grammar PSqlSchema
   end
 
   rule alter_seq_change_schema
-    req_space_or_comment 'set schema' req_space_or_comment [\w]+
+    req_space_or_comment 'set' S 'schema' req_space_or_comment [\w]+
     #    <AlterSequenceChangeSchemaClause>
   end
 
@@ -556,7 +648,7 @@ grammar PSqlSchema
   end
 
   rule seq_owned_by_clause
-    req_space_or_comment  'owned by' req_space_or_comment ( sequence_name / 'none' )
+    spc_andor_N  'owned by' S ( sequence_name / 'none' )
     #    <OwnedByClause>
   end
 
@@ -621,7 +713,7 @@ grammar PSqlSchema
       /
       sub_expression)
     (req_space_or_comment? inline_window)?
-    ('::' [\w]+)? # cast
+    (colons_cast_as)? # cast
     (req_space_or_comment? set_operator req_space_or_comment? (set))*
     (req_space_or_comment? operator req_space_or_comment? expression)?
   end
@@ -754,10 +846,11 @@ grammar PSqlSchema
       'binary' / 'both' /
       'case' / 'cast' / 'check' / 'column' / 'constraint' / 'correlation' / 'create' / 'current_database' / 'current_date' / 'current_schema' / 'current_timestamp' / 'current_time' / 'current_user' /
       'default' / 'deferrable' / 'desc' / 'distinct' / 'do' /
-      'else' / 'encoded' / 'end' / 'except' /
+      'else' / 'encoded' / 'end' / 'except' / 'exists' / 'exist' /
       'false' / 'foreign' / 'for' / 'from' /
       'grant' / 'grouped' / 'group' /
       'having' /
+      'if exists' / 'if' /
       'initially' / 'intersect' / 'intervalym'  / 'into' / 'in' /
       'join' /
       'ksafe' /
@@ -773,7 +866,7 @@ grammar PSqlSchema
       'when' / 'where' / 'window' / 'within' / 'with'
     )
     word_boundary
-      #    <SQLKeyword>
+      <SQLKeyword>
   end
 
   #   bit varying [ (n) ]	varbit [ (n) ]
@@ -929,6 +1022,11 @@ grammar PSqlSchema
   # optional blank line (optionally with leading spaces or tabs)
   rule sn
     sN?
+  end
+
+  # Must at least have a space; or a newline with optional spaces after it
+  rule spc_andor_N
+     ([\n \t])* / S
   end
 
   rule comment_line

@@ -11,7 +11,6 @@ RSpec.shared_examples 'it can parse sql file' do |sql_fn|
   end
 end
 
-
 RSpec.describe PsqlParser::Parser do
 
   def assert_parse_schema(sql, show_tree: false, cleanup_tree: false, make_dot_file: false)
@@ -60,15 +59,27 @@ RSpec.describe PsqlParser::Parser do
           assert_parse_schema "CREATE TABLE answers (id integer, some_text text, is_valid boolean   )"
         end
 
-
         describe 'column types with options' do
 
+          describe 'column with ::' do
+            # expression::type is shorthand for CAST(expression AS type)
 
-          it 'column default with ::' do
-            pending
-            # locale character varying DEFAULT 'sv'::character varying NOT NULL,
+            it 'this::integer' do
+              assert_parse_schema "CREATE TABLE questions (this::integer)"
+            end
+
+            it "something::integer NOT NULL" do
+              assert_parse_schema "CREATE TABLE questions (something::integer NOT NULL)"
+            end
+
+            it "locale::character varying NOT NULL" do
+              assert_parse_schema "CREATE TABLE questions (locale::character varying NOT NULL)"
+            end
+
+            it "locale character varying DEFAULT 'sv'::character varying NOT NULL" do
+              assert_parse_schema "CREATE TABLE questions (code varchar, locale character varying DEFAULT 'sv'::character varying NOT NULL)"
+            end
           end
-
 
           it 'varchar(x)' do
             assert_parse_schema "CREATE TABLE questions (code varchar)"
@@ -147,7 +158,6 @@ RSpec.describe PsqlParser::Parser do
             assert_parse_schema "CREATE TABLE questions (t timestampz(10) WITH TIME ZONE)"
           end
         end
-
 
         describe 'column constraints' do
           # [ CONSTRAINT constraint_name ]
@@ -249,10 +259,30 @@ RSpec.describe PsqlParser::Parser do
           end
 
         end
+
+      end
+
+      describe 'table type' do
+        # [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } | UNLOGGED ]
+        it 'GLOBAL' do
+          assert_parse_schema "CREATE GLOBAL TABLE answers_table"
+        end
+        it 'LOCAL' do
+          assert_parse_schema "CREATE LOCAL TABLE answers_table"
+        end
+        it 'TEMPORARY' do
+          assert_parse_schema "CREATE LOCAL TEMPORARY TABLE answers_table"
+        end
+        it 'TEMP' do
+          assert_parse_schema "CREATE LOCAL TEMP TABLE answers_table"
+        end
+        it 'UNLOGGED' do
+          assert_parse_schema "CREATE UNLOGGED GLOBAL TEMPORARY TABLE answers_table"
+        end
       end
 
       it 'if not exists' do
-        pending
+        assert_parse_schema "CREATE TABLE IF NOT EXISTS answers (id integer)"
       end
 
     end
@@ -260,7 +290,6 @@ RSpec.describe PsqlParser::Parser do
     describe 'SET statement' do
       # SET [ SESSION | LOCAL ] configuration_parameter { TO | = } { value | 'value' | DEFAULT }
       # SET [ SESSION | LOCAL ] TIME ZONE { timezone | LOCAL | DEFAULT }
-
 
       it 'SET configuration_parameter' do
         assert_parse_schema "SET this = 5"
@@ -270,12 +299,10 @@ RSpec.describe PsqlParser::Parser do
         assert_parse_schema "SET SESSION this = 5"
       end
 
-
-      describe 'SET time zone' do
-        pending
-      end
+      # describe 'SET time zone' do
+      #   pending
+      # end
     end
-
 
     # ALTER TABLE [ IF EXISTS ] [ ONLY ] name [ * ]
     #   action [, ... ]
@@ -298,19 +325,230 @@ RSpec.describe PsqlParser::Parser do
     #
     describe 'ALTER TABLE' do
 
-      it 'change owner' do
+      describe 'ONLY' do
+
+        describe 'actions' do
+
+          describe 'ALTER COLUMN' do
+            # ALTER [ COLUMN ] column_name [ SET DATA ] TYPE data_type [ COLLATE collation ] [ USING expression ]
+            # ALTER [ COLUMN ] column_name SET DEFAULT expression
+            # ALTER [ COLUMN ] column_name DROP DEFAULT
+            # ALTER [ COLUMN ] column_name { SET | DROP } NOT NULL
+            # ALTER [ COLUMN ] column_name SET STATISTICS integer
+            # ALTER [ COLUMN ] column_name SET ( attribute_option = value [, ... ] )
+            # ALTER [ COLUMN ] column_name RESET ( attribute_option [, ... ] )
+            # ALTER [ COLUMN ] column_name
+            #   SET STORAGE { PLAIN | EXTERNAL | EXTENDED | MAIN }
+
+            it 'type' do
+              assert_parse_schema "ALTER TABLE sometable ALTER COLUMN a_column SET DATA TYPE integer"
+              assert_parse_schema "ALTER TABLE sometable ALTER COLUMN a_column  TYPE integer"
+              assert_parse_schema "ALTER TABLE sometable ALTER COLUMN a_column  TYPE integer COLLATE sv_SE"
+            end
+
+            describe 'default' do
+              it 'simple default true' do
+                assert_parse_schema "ALTER TABLE public.answers ALTER COLUMN id SET DEFAULT true"
+              end
+
+              it 'with ::' do
+                assert_parse_schema "ALTER TABLE public.answers ALTER COLUMN id SET DEFAULT 'public.answers_id_seq'::regclass;"
+              end
+
+              it 'nextval' do
+                assert_parse_schema "ALTER TABLE public.answers ALTER COLUMN id SET DEFAULT nextval('public.answers_id_seq'::regclass);"
+              end
+            end
+
+          end
+
+          describe 'ADD COLUMN' do
+            pending
+          end
+
+          describe 'DROP COLUMN' do
+            pending
+          end
+
+          # it 'ADD table_constraint' do
+          #   assert_parse_schema "ALTER TABLE public.breed_quiz_scoring_keys ADD CONSTRAINT fk_rails_b084479daf FOREIGN KEY (question_id ) NOT VALID"
+          #   assert_parse_schema "ALTER TABLE some_table ADD constraint a_table_constraint FOREIGN KEY (column1, column2) REFERENCES reftable NOT VALID"
+          # end
+
+          describe 'ALTER TABLE some_table ADD CONSTRAINT table_constraint_using_index' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table ALTER CONSTRAINT' do
+            # ALTER CONSTRAINT constraint_name [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+            pending
+          end
+
+          describe 'ALTER TABLE some_table VALIDATE CONSTRAINT constraint_name' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table DROP CONSTRAINT constraint_name' do
+            pending
+          end
+
+          # describe 'DISABLE TRIGGER' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE TRIGGER' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE REPLICA TRIGGER' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE ALWAYS TRIGGER' do
+          #   pending
+          # end
+          #
+          # describe 'DISABLE RULE' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE RULE' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE REPLICA RULE' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE ALWAYS RULE' do
+          #   pending
+          # end
+          #
+          # describe 'DISABLE ROW LEVEL SECURITY' do
+          #   pending
+          # end
+          #
+          # describe 'ENABLE ROW LEVEL SECURITY' do
+          #   pending
+          # end
+          #
+          # describe 'FORCE ROW LEVEL SECURITY' do
+          #   pending
+          # end
+          #
+          # describe 'NO FORCE ROW LEVEL SECURITY' do
+          #   pending
+          # end
+          #
+          # describe 'CLUSTER ON index_name' do
+          #   pending
+          # end
+          #
+          # describe 'SET WITHOUT CLUSTER' do
+          #   pending
+          # end
+
+          describe 'ALTER TABLE some_table SET WITHOUT OIDS' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table SET WITH OIDS' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table SET TABLESPACE new_tablespace' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table SET { LOGGED | UNLOGGED }' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table SET ( storage_parameter [= value] [, ... ] )' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table RESET ( storage_parameter [, ... ] )' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table INHERIT parent_table' do
+            pending
+          end
+
+          describe 'ALTER TABLE some_table NO INHERIT parent_table' do
+            pending
+          end
+
+          # describe 'OF type_name' do
+          #   pending
+          # end
+          #
+          # describe 'NOT OF' do
+          #   pending
+          # end
+
+          it 'OWNER TO' do
+            assert_parse_schema "ALTER TABLE public.answers OWNER TO deploy;"
+          end
+
+          describe 'ALTER TABLE REPLICA IDENTITY' do
+            # REPLICA IDENTITY { DEFAULT | USING INDEX index_name | FULL | NOTHING }
+            pending
+          end
+        end
+
+        describe 'RENAME column' do
+          pending
+        end
+
+        describe 'RENAME constraint' do
+          pending
+        end
+
+        describe 'ADD CONSTRAINT' do
+
+          it 'foreign_key' do
+            sql = "ALTER TABLE ONLY public.breed_quiz_scoring_keys ADD CONSTRAINT fk_rails_b084479daf FOREIGN KEY (question_id )"
+            assert_parse_schema(sql)
+          end
+
+          it 'foreign_key with newline inbetween' do
+            sql = "ALTER TABLE ONLY public.breed_quiz_scoring_keys\n       ADD CONSTRAINT fk_rails_b084479daf FOREIGN KEY (question_id )"
+            assert_parse_schema(sql)
+          end
+
+          it 'foreign key references' do
+            sql = "ALTER TABLE ONLY public.breed_quiz_scoring_keys\n" +
+                  "ADD CONSTRAINT fk_rails_b084479daf FOREIGN KEY (question_id) REFERENCES public.questions(id);"
+            assert_parse_schema(sql)
+          end
+        end
+      end
+
+      describe 'RENAME TO' do
+
+        it 'ALTER TABLE distributors RENAME TO suppliers;' do
+          assert_parse_schema "ALTER TABLE distributors RENAME TO suppliers;"
+        end
+
+
+        it 'ALTER TABLE IF EXISTS distributors RENAME TO suppliers;' do
+          assert_parse_schema "ALTER TABLE IF EXISTS distributors RENAME TO suppliers;"
+        end
+
+      end
+
+      it 'SET SCHEMA' do
+        assert_parse_schema "ALTER TABLE public.a_table SET SCHEMA new_schema;"
+        assert_parse_schema "ALTER TABLE IF EXISTS public.a_table SET SCHEMA new_schema;"
+      end
+
+      describe 'ALL IN TABLESPACE .. SET TABLESPACE' do
         pending
       end
 
-      it 'with ::' do
-        pending
-      end
-
-      it 'nextval' do
-        pending
-      end
     end
-
 
     describe 'COMMENT ON' do
 
@@ -356,7 +594,6 @@ RSpec.describe PsqlParser::Parser do
       end
 
     end
-
 
     # CREATE [ TEMPORARY | TEMP ] SEQUENCE [ IF NOT EXISTS ] name [ INCREMENT [ BY ] increment ]
     #     [ MINVALUE minvalue | NO MINVALUE ] [ MAXVALUE maxvalue | NO MAXVALUE ]
@@ -478,7 +715,6 @@ RSpec.describe PsqlParser::Parser do
         assert_parse_schema "ALTER SEQUENCE  counter1 CACHE some_cache"
       end
 
-
       it 'owned by' do
         assert_parse_schema "ALTER SEQUENCE  counter1 OWNED BY NONE"
         assert_parse_schema "ALTER SEQUENCE  counter1 OWNED BY table_name.column"
@@ -512,9 +748,8 @@ RSpec.describe PsqlParser::Parser do
     end
 
     describe "ALTER TABLE ONLY public.answers ALTER COLUMN id SET DEFAULT nextval('public.answers_id_seq'::regclass);" do
-    #   ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.questions_id_seq'::regclass);
+      #   ALTER TABLE ONLY public.questions ALTER COLUMN id SET DEFAULT nextval('public.questions_id_seq'::regclass);
     end
-
 
     describe 'GRANT' do
 
@@ -570,7 +805,6 @@ RSpec.describe PsqlParser::Parser do
 
     end
 
-
     describe 'REVOKE' do
 
       describe 'privileges on schemas' do
@@ -617,10 +851,10 @@ RSpec.describe PsqlParser::Parser do
           [all_from_role, all_from_public,
            all_from_current_user,
            all_from_session_user].each do |all_stmt|
-             all_priv_stmt = "REVOKE #{all_stmt.gsub('ALL', 'ALL PRIVILEGES')}"
-             it all_priv_stmt do
-               assert_parse_schema all_priv_stmt
-             end
+            all_priv_stmt = "REVOKE #{all_stmt.gsub('ALL', 'ALL PRIVILEGES')}"
+            it all_priv_stmt do
+              assert_parse_schema all_priv_stmt
+            end
           end
         end
 
@@ -670,7 +904,6 @@ RSpec.describe PsqlParser::Parser do
           end
         end
 
-
         context 'CASCADE' do
           base_revoke_stmts.each do |stmt|
             it stmt do
@@ -691,7 +924,6 @@ RSpec.describe PsqlParser::Parser do
 
     end
 
-
     describe 'CREATE EXTENSION' do
       # CREATE EXTENSION [ IF NOT EXISTS ] extension_name
       #        [ WITH ] [ SCHEMA schema_name ]
@@ -704,13 +936,13 @@ RSpec.describe PsqlParser::Parser do
       # CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
       #
       it 'create extension psql' do
-        assert_parse_schema  "CREATE EXTENSION  plpgsql;"
-        assert_parse_schema  "CREATE EXTENSION IF NOT EXISTS plpgsql;"
-        assert_parse_schema  "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;"
-        assert_parse_schema  "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog VERSION a_version;"
-        assert_parse_schema  "CREATE EXTENSION IF NOT EXISTS plpgsql SCHEMA pg_catalog CASCADE VERSION 'version string';"
-        assert_parse_schema  "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog FROM the_old_version;"
-        assert_parse_schema  "CREATE EXTENSION IF NOT EXISTS plpgsql SCHEMA pg_catalog CASCADE;"
+        assert_parse_schema "CREATE EXTENSION  plpgsql;"
+        assert_parse_schema "CREATE EXTENSION IF NOT EXISTS plpgsql;"
+        assert_parse_schema "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;"
+        assert_parse_schema "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog VERSION a_version;"
+        assert_parse_schema "CREATE EXTENSION IF NOT EXISTS plpgsql SCHEMA pg_catalog CASCADE VERSION 'version string';"
+        assert_parse_schema "CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog FROM the_old_version;"
+        assert_parse_schema "CREATE EXTENSION IF NOT EXISTS plpgsql SCHEMA pg_catalog CASCADE;"
       end
 
     end
@@ -724,9 +956,8 @@ RSpec.describe PsqlParser::Parser do
 
     end
 
-    describe 'SELECT ... set_val' do
-      pending
-    #   SELECT pg_catalog.setval('public.answers_id_seq', 1133, true);
+    it 'SELECT ... set_val' do
+      assert_parse_schema " SELECT pg_catalog.setval('public.answers_id_seq', 1133, true);"
     end
 
     describe 'COPY data' do
@@ -736,7 +967,6 @@ RSpec.describe PsqlParser::Parser do
                               "\\."
       end
 
-
       it 'one line of data' do
         assert_parse_schema "COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;\n" +
                               "1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund\n" +
@@ -745,10 +975,10 @@ RSpec.describe PsqlParser::Parser do
 
       it '3 lines of data' do
         assert_parse_schema "COPY public.answers (id, question_id, text, short_text, help_text, weight, response_class, reference_identifier, data_export_identifier, common_namespace, common_identifier, display_order, is_exclusive, display_length, custom_class, custom_renderer, created_at, updated_at, default_value, api_id, display_type, input_mask, input_mask_placeholder, original_choice, is_comment, column_id, question_reference_id) FROM stdin;\n" +
-          "1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund\n" +
-          "1098	305	Nej	nej		\N	answer	nej	nej	\N		1	f	\N		\N	2017-04-04 05:20:08.619815	2018-11-16 17:16:26.553073		2971fe9e-5d73-4bd3-943f-82bd243a94a0	default				f	\N	1-haft-hund\n" +
-          "1104	306	Över 65 år	Över 65 år	För maximal trivsel med hundinnehavet på äldre dar är en lättskött hund att föredra - både med tanke på hundens motionsbehov och pälsvård. Tänk på att ni kan försäkra er mot oron - Vem skall ta hand om hunden om ni till exempel vistas en tid på sjukhus? Tala med ert försäkringsbolag.	\N	answer	65_over	ver_65_r	\N		4	f	\N		\N	2017-04-04 04:04:18.471384	2018-11-16 17:16:26.553073		5aeb0b78-d98f-4b55-89a7-4b35dfd21934	default				f	\N	2-hundägare-ålder\n" +
-          "\\."
+                              "1097	305	Ja	ja		\N	answer	ja	ja	\N		0	f	\N		\N	2017-04-04 04:04:18.419588	2018-11-16 17:16:26.553073		ab4c282d-de63-46ea-a0d2-038db3dc4f80	default				f	\N	1-haft-hund\n" +
+                              "1098	305	Nej	nej		\N	answer	nej	nej	\N		1	f	\N		\N	2017-04-04 05:20:08.619815	2018-11-16 17:16:26.553073		2971fe9e-5d73-4bd3-943f-82bd243a94a0	default				f	\N	1-haft-hund\n" +
+                              "1104	306	Över 65 år	Över 65 år	För maximal trivsel med hundinnehavet på äldre dar är en lättskött hund att föredra - både med tanke på hundens motionsbehov och pälsvård. Tänk på att ni kan försäkra er mot oron - Vem skall ta hand om hunden om ni till exempel vistas en tid på sjukhus? Tala med ert försäkringsbolag.	\N	answer	65_over	ver_65_r	\N		4	f	\N		\N	2017-04-04 04:04:18.471384	2018-11-16 17:16:26.553073		5aeb0b78-d98f-4b55-89a7-4b35dfd21934	default				f	\N	2-hundägare-ålder\n" +
+                              "\\."
       end
 
       it '3 lines of data, followed by other valid (not copy data)  lines' do
@@ -769,15 +999,14 @@ RSpec.describe PsqlParser::Parser do
       end
     end
 
-
     it 'example with interval hour to minute from postgres doc' do
       assert_parse_schema "CREATE TABLE films (" +
-                     " code        varchar(5) CONSTRAINT firstkey PRIMARY KEY," +
-                     "title       varchar(40) NOT NULL," +
-                     "did         integer NOT NULL," +
-                     "date_prod   date," +
-                     "kind        varchar(10)," +
-                     "fine_measurement float )"
+                            " code        varchar(5) CONSTRAINT firstkey PRIMARY KEY," +
+                            "title       varchar(40) NOT NULL," +
+                            "did         integer NOT NULL," +
+                            "date_prod   date," +
+                            "kind        varchar(10)," +
+                            "fine_measurement float )"
     end
 
     it 'answers table' do
@@ -833,7 +1062,6 @@ CREATE TABLE public.breed_profiles ( id integer);
       assert_parse_schema sql
     end
   end
-
 
   describe 'SQL files' do
 
