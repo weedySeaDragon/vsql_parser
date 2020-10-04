@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'treetop'
 
 module PSqlSchema
@@ -122,7 +124,7 @@ module PSqlSchema
   #   # end
   # end
   #
-  #  END Most of the following are for the PSqlParser:
+  #  END (Most of the following are for the PSqlParser)
   #  --------------------------------------------
 
   class DDLStatement < ::Treetop::Runtime::SyntaxNode
@@ -178,11 +180,13 @@ module PSqlSchema
   # class DeferrableClause < ::Treetop::Runtime::SyntaxNode
   # end
   #
-  module ImmediateClause # < ::Treetop::Runtime::SyntaxNode
+
+  module ImmediateClause
   end
-  #
-  # class NullOrNotClause < ::Treetop::Runtime::SyntaxNode
-  # end
+
+
+  class NullOrNotClause < ::Treetop::Runtime::SyntaxNode
+  end
   #
   # class DefaultExpression < ::Treetop::Runtime::SyntaxNode
   # end
@@ -375,5 +379,4 @@ module PSqlSchema
   #
   # class WithOrWithoutTimeZoneClause < ::Treetop::Runtime::SyntaxNode
   # end
-
 end
