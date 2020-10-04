@@ -38,17 +38,17 @@ module PsqlParser
 
     # -------------------------------------------
 
-    def self.parser
-      @@parser ||= PSqlParser.new
-    end
 
+    def self.sql_parser
+      @@sql_parser ||= PSqlParser.new
+    end
 
     def self.schema_parser
-      @@parser ||= PSqlSchemaParser.new
+      @@schema_parser ||= PSqlSchemaParser.new
     end
 
-
-    def self.parse_schema(sql, show_tree: true,
+    def self.parse_schema(sql,
+                          show_tree: true,
                           cleanup_tree: false,
                           dot_file: false)
       parse(sql,
@@ -58,9 +58,8 @@ module PsqlParser
             dot_file: dot_file)
     end
 
-
     def self.parse(sql,
-                   grammarparser: parser,
+                   grammarparser: sql_parser,
                    show_tree: false,
                    cleanup_tree: false,
                    dot_file: false)
@@ -81,7 +80,6 @@ module PsqlParser
       result_tree
     end
 
-
     # Display and/or create a dot file based on the options given
     def self.output_tree(tree, show: false, to_dot_file: false)
       puts tree.inspect if show
@@ -95,7 +93,6 @@ module PsqlParser
         write_dot(tree, "#{dot_fname}-0")
       end
     end
-
 
     def self.parser_error_details(parsed_str, parser)
       fail_index = parser.max_terminal_failure_index
@@ -135,14 +132,12 @@ module PsqlParser
       end
     end
 
-
     def self.reject_unwanted_nodes(root_node)
       return if root_node.elements.nil?
 
       root_node.elements.delete_if(&REJECT_TEST)
       root_node.elements.each { |node| self.reject_unwanted_nodes(node) }
     end
-
 
     # ---------------------
     # The following methods were taken and adapted from the treetop gem:
@@ -156,11 +151,9 @@ module PsqlParser
       io.puts "node#{node.dot_id} [label=\"'#{node_text}'\"];"
     end
 
-
     def self.node_to_node_dot(first_node, second_node, io)
       io.puts "node#{first_node.dot_id} -> node#{second_node.dot_id};"
     end
-
 
     def self.output_dot_to_max_levels(tree, io, level = 1)
       return if level > MAX_DOT_LEVEL
@@ -174,7 +167,6 @@ module PsqlParser
         output_dot_to_max_levels(child_element, io, level + 1)
       end
     end
-
 
     def self.write_dot(tree, fname)
       File.open(fname + '.dot', 'w') do |file|
