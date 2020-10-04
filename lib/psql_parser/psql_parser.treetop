@@ -1,160 +1,112 @@
 grammar PSql
 
-  rule wholefile
-    sn
-    (ddl_or_query / sN)*
-    sn
-  end
-
-  # ddl_statement must come before query so that any ddl statements that start
-  #  with query keywords are properly parsed (e.g. 'SELECT ...set_config()'
-  rule ddl_or_query
-    s
-    (query )
-    s
-    #    <DDLorQuery>
-  end
+#  rule wholefile
+#    sn
+#    (query / sN)*
+#    sn
+#    <PSqlFile>
+#  end
 
   rule query
-    req_space_or_comment*
+    space*
     select_statement
-    (req_space_or_comment from_statement (req_space_or_comment join_statement)*
-      (req_space_or_comment where_statement)?
-      (req_space_or_comment group_by_statement)?
-      (req_space_or_comment having_statement)?
-      (req_space_or_comment window_statement)*
-      (req_space_or_comment order_by_statement)?
-      (req_space_or_comment limit_statement)?
+    (space from_statement (space join_statement)*
+      (space where_statement)?
+      (space group_by_statement)?
+      (space having_statement)?
+      (space window_statement)*
+      (space order_by_statement)?
+      (space limit_statement)?
       )?
-    (req_space_or_comment* 'union' req_space_or_comment query)?
-    (req_space_or_comment / ';')*
-    #    <Query>
+    (space* 'union' space query)?
+    (space / ';')*
+    <Query>
   end
 
 
   rule select_statement
-    'select' req_space_or_comment (distinct_predicate req_space_or_comment)? select_expressions
-    #     <SelectStatement>
+    'select' space (distinct_predicate space)? select_expressions <SelectStatement>
   end
 
   rule join_statement
-    ('left' / 'outer' / 'inner' / 'right' / 'full' / req_space_or_comment)* 'join' req_space_or_comment expression (req_space_or_comment alias)? req_space_or_comment 'on' req_space_or_comment expression
-    #    <JoinStatement>
+    ('left' / 'outer' / 'inner' / 'right' / 'full' / space)* 'join' space expression (space alias)? space 'on' space expression
   end
 
   rule where_statement
-    'where' req_space_or_comment expression
-    #    <WhereStatement>
+    'where' space expression
   end
 
   rule having_statement
-    'having' req_space_or_comment expression
-    #    <HavingClause>
+    'having' space expression
   end
 
   rule window_statement
-    'window' req_space_or_comment field_entity req_space_or_comment 'as' req_space_or_comment window
-    #    <WindowStatement>
+    'window' space name_expression space 'as' space window
   end
 
   rule group_by_statement
-    'group by' req_space_or_comment expression (list_separator expression)*
-    #     <GroupByClause>
+    'group by' space expression (expression_separator expression)* <Statement>
   end
 
   rule order_by_statement
-    'order by' req_space_or_comment order_by_expression (list_separator order_by_expression)*
-     # <Statement>
+    'order by' space order_by_expression (expression_separator order_by_expression)* <Statement>
   end
 
   rule limit_statement
-    'limit' req_space_or_comment [0-9]+
-    # <StatementClause>
+    'limit' space [0-9]+
   end
 
   rule select_expressions
-    select_expression (list_separator select_expression)* # <Entity>
+    select_expression (expression_separator select_expression)* <Entity>
+  end
+
+  rule expression_separator
+    space* ',' space* <Entity>
   end
 
   rule order_by_expression
-    expression (req_space_or_comment ('desc' / 'asc'))?
-    #    <OrderByClause>
+    expression (space ('desc' / 'asc'))?
   end
 
   rule select_expression
-    expression (req_space_or_comment alias)?  #<SelectExpression>
+    expression (space alias)? <SelectExpression>
   end
 
   rule alias
-    ('as' req_space_or_comment)?
+    ('as' space)?
     (
-      '"' ([^\"]+ ) '"'
+      '"' ([^\"]+ <Alias> )
+       '"'
       /
-      !(keyword word_boundary) [\w]+ #<Alias>
+      !(keyword word_boundary) [\w]+ <Alias>
     )
   end
 
-
-
-  # not schema qualified
-  rule table_name
-    [\w]+
-      #    <TableName>
-  end
-
-  rule schema_name
-    [\w]+
-      #    <SchemaName>
-  end
-
-  rule role_name
-    [\w]+
-      #    <RoleName>
-  end
-
-
-  rule cache_name
-    [\w]+
-    #    <CacheName>
-  end
-
-  rule owner_name
-    [\w]+
-    #    <OwnerName>
-  end
-
-
-  rule pos_neg_integer
-    ( '+' / '-' )? [0-9]+
-    #    <PosNegInteger>
-  end
-
- #--------------------------------------------------
   rule expression
     prefix_modifier?
     (
-      '(' query ')' #<Query>
+      '(' query ')' <Query>
       /
-      '(' req_space_or_comment? expression req_space_or_comment? ')' #<Entity>
+      '(' space? expression space? ')' <Entity>
       /
       sub_expression)
-    (req_space_or_comment? inline_window)?
+    (space? inline_window)?
     ('::' [\w]+)? # cast
-    (req_space_or_comment? set_operator req_space_or_comment? (set))*
-    (req_space_or_comment? operator req_space_or_comment? expression)?
+    (space? set_operator space? (set))*
+    (space? operator space? expression)?
   end
 
   rule prefix_modifier
-    'not' req_space_or_comment
+    'not' space
     /
-    '-' req_space_or_comment?
+    '-' space?
   end
 
   rule inline_window
-    'over' req_space_or_comment (window / field_entity)
+    'over' space (window / name_expression)
   end
 
-  # poor window parsing right now... we'll need to beef this up if we use windows with parentheses
+  # poorman window parsing right now... we'll need to beef this up if we use windows with parentheses
   rule window
     '(' [^\)]* ')'
   end
@@ -170,7 +122,7 @@ grammar PSql
   end
 
   rule set_literal
-    '(' req_space_or_comment? primitive_literal (req_space_or_comment? ',' req_space_or_comment? primitive_literal)* req_space_or_comment? ')'
+    '(' space? primitive_literal (space? ',' space? primitive_literal)* space? ')'
   end
 
   rule primitive_literal
@@ -178,7 +130,7 @@ grammar PSql
   end
 
   rule interval_literal
-    'interval' req_space_or_comment "'" [\w ]+ "'"
+    'interval' space "'" [\w ]+ "'"
   end
 
   rule numeric_literal
@@ -192,31 +144,30 @@ grammar PSql
     /
     primitive_literal
     /
-    field_entity
+    field_reference
   end
 
   rule set_operator
-    'not in' / 'in' &req_space_or_comment
+    'not in' / 'in' &space
   end
 
   rule operator
     [+\-/=\|><!]+
     /
-    ('is not' / 'is' / 'like' / 'between' / 'and' / 'or') &req_space_or_comment
+    ('is not' / 'is' / 'like' / 'between' / 'and' / 'or') &space
   end
 
   rule case_statement
     'case'
-    (req_space_or_comment !('when') expression)?
-    (req_space_or_comment 'when' req_space_or_comment expression req_space_or_comment 'then' req_space_or_comment expression)*
-    (req_space_or_comment 'else' req_space_or_comment expression)?
-    req_space_or_comment 'end' # <Entity>
+    (space !('when') expression)?
+    (space 'when' space expression space 'then' space expression)*
+    (space 'else' space expression)?
+    space 'end' <Entity>
 
   end
 
   rule function
-    [\w]+ req_space_or_comment* '(' (distinct_predicate req_space_or_comment)? (expression / ',' / req_space_or_comment)* ')'
-      #    <Function>
+    [\w]+ space* '(' (distinct_predicate space)? (expression / ',' / space)* ')' <Function>
   end
 
   rule string_literal
@@ -226,38 +177,32 @@ grammar PSql
   rule name_expression
     '"' ([^\"]+ <Name>) '"'
     /
-    [\w]+ #<Name>
-  end
-
-  rule field_entity
-    '"' [\w\.\* ]+ '"' #<QuotedEntity>
-    /
-    [\w\.\*]+ #<Entity>
+    [\w]+ <Name>
   end
 
   rule field_glob
-    '*' #<FieldGlob>
+    '*' <FieldGlob>
   end
 
   rule field_reference
-    (name_expression "." <TablePart>)? (name_expression / field_glob) #<FieldRef>
+    (name_expression "." <TablePart>)? (name_expression / field_glob)
+    <FieldRef>
   end
 
   rule from_statement
-    'from' req_space_or_comment+ from_expression (req_space_or_comment alias)? #<Statement>
+    'from' space+ from_expression (space alias)? <Statement>
   end
 
   rule from_expression
-    [\w]+ #<Entity>
+    [\w]+ <Entity>
     /
-    '(' query ')' #<Entity>
+    '(' query ')' <Entity>
   end
 
 
   # matches at least one space. Handles comments, too.
-  rule req_space_or_comment
+  rule space
     ([\s]+ / ('--' (!"\n" .)+ ))+
-    #    <Space>
   end
 
   rule word_boundary
@@ -275,7 +220,7 @@ grammar PSql
       'false' / 'foreign' / 'for' / 'from' /
       'grant' / 'grouped' / 'group' /
       'having' /
-      'initially' / 'intersect' / 'intervalym'  / 'into' / 'in' /
+      'initially' / 'intersect' / 'intervalym' / 'interval' / 'into' / 'in' /
       'join' /
       'ksafe' /
       'leading' / 'limit' / 'localtimestamp' / 'localtime' /
@@ -284,102 +229,12 @@ grammar PSql
       'offset' / 'off' / 'old' / 'only' / 'on' / 'order' / 'or' /
       'pinned' / 'placing' / 'primary' / 'projection' /
       'references' /
-      'schema' / 'segmented' / 'select' / 'session_user' / 'set' / 'some' / 'sysdate' /
+      'schema' / 'segmented' / 'select' / 'session_user' / 'some' / 'sysdate' /
       'table' / 'then' / 'timeseries' / 'to' / 'trailing' / 'true' /
       'unbounded' / 'union' / 'unique' / 'unsegmented' / 'user' / 'using' /
       'when' / 'where' / 'window' / 'within' / 'with'
     )
     word_boundary
-      #    <SQLKeyword>
-  end
-
-  #   bit varying [ (n) ]	varbit [ (n) ]
-  rule bit_varying_type
-    ( 'bit varying'  /  'bit' / 'varbit' ) integer_in_parenthese?
-      #    <BitVaryingType>
-  end
-
-  # character [ (n) ]	char [ (n) ]
-  rule character_type
-   (  'character' / 'char') integer_in_parenthese?
-      #   <CharacterType>
-  end
-
-  # character varying [ (n) ]	varchar [ (n) ]
-  rule character_varying_type
-    ( 'character varying' / 'varchar' ) integer_in_parenthese?
-      #    <VarCharType>
-  end
-
-  rule integer_in_parenthese
-    ( '(' s [0-9]+ s ')' )
-      #    <IntegerInParentheses>
-  end
-
-  #  numeric [ (p, s) ]	decimal [ (p, s) ]
-  rule numeric_type
-    ('numeric' / 'decimal' ) number_precision?
-    #    <NumericType>
-  end
-
-  #  float [ (p, s) ]	decimal [ (p, s) ]
-  rule float_type
-    'float' number_precision?
-    #    <FloatType>
-  end
-
-  rule number_precision
-    '(' s [0-9]+ (s ',' s [0-9]+)?  s ')'
-  end
-
-
-  rule list_separator
-    [\s]* ',' [\s]*
-    #    <ListSeparator>
-  end
-
-
-  # =============================
-  #  Whitespace and comments
-  #
-  #  Here are four whitespace helpers:
-  #    s in the name means “space”,
-  #    n means newline,
-  #   and capitalization means that the capitalized part is REQUIRED
-  #      (contrary to being optional).
-  #
-  #  from https://whitequark.org/blog/2011/09/08/treetop-typical-errors/
-  # =============================
-
-  # optional space
-  rule s
-    S?
-  end
-
-  # REQUIRED one or more spaces or tabs
-  rule S
-    [ \t]+
-  end
-
-  # optional blank line (optionally with leading spaces or tabs)
-  rule sn
-    sN?
-  end
-
-  rule comment_line
-    comment_marker (!"\n" .)* "\n"  #<CommentLine>
-  end
-
-  rule comment_marker
-    '--'
-  end
-
-  # REQUIRED NEWLINE
-  # optional spaces followed by a newline
-  #   or
-  # optional comment line followed by a newline
-  rule sN
-    ( ( S "\n" / s comment_line / s "\n" ) s comment_line? )+
   end
 
 end
