@@ -7,7 +7,7 @@ RSpec.shared_examples 'it can parse sql file' do |sql_fn|
     File.open(File.join(FIXTURES, sql_fn), "r:bom|utf-8") { |sql_file| sql = sql_file.read }
     # puts "sql:"
     # puts sql
-    assert_parse_schema(sql, show_tree: false, cleanup_tree: false, make_dot_file: true)
+    assert_parse_schema(sql, show_tree: false, cleanup_tree: false, make_dot_file: false)
   end
 end
 
@@ -41,13 +41,6 @@ RSpec.describe PsqlParser::Parser do
         assert_parse_schema "CREATE TABLE public.answers_table;"
       end
 
-      #
-      # sql = "CREATE TABLE public.answers (id integer NOT NULL," +
-      #   "question_id integer, text text," +
-      #   "short_text text," +
-      #   "response_class character varying," +
-      #   "is_exclusive boolean," +
-      #   "created_at timestamp without time zone, is_comment boolean DEFAULT false, column_id integer);"
 
       context 'with columns' do
 
@@ -1071,9 +1064,9 @@ CREATE TABLE public.breed_profiles ( id integer);
     RASVAL_AND_BPROFILES = 'rasval_production_20200402_2155-ONLY-answers-breedprofiles.sql'
     ENTIRE_RASVAL_SCHEMA = 'rasval_production_20200402_2155.sql'
 
-    # it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
+    it_should_behave_like 'it can parse sql file', SMALL_START_SHORT_TABLE
 
-    # it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
+    it_should_behave_like 'it can parse sql file', CREATE_TABLES_ONLY
 
     it_should_behave_like 'it can parse sql file', RASVAL_AND_BPROFILES
   end
